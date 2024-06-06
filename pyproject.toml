@@ -3,6 +3,7 @@ name = "pyMeticulous"
 version = "0.1.0"
 description = "Integration with the meticulouscoffee machine via its REST API"
 authors = [{ name = "Meticulous", email = "support@meticuloushome.com" }]
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "requests>=2.32.3",
