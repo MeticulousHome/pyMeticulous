@@ -1,0 +1,9 @@
+[flake8]
+max-line-length = 120
+extend-ignore = E203, E704, ANN101
+exclude = __pycache__, .venv, venv, build
+plugins = flake8-deprecated,flake8-black
+type_annotations = True
+
+# Enable specific checks for type annotations
+select = C,E,F,W,B,B950,ANN
