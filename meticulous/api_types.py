@@ -183,3 +183,8 @@ class ProfileEvent(BaseModel):
 class MachineInfo(BaseModel):
     software_info: Dict[str, Union[str, int, float]]
     esp_info: Dict[str, Union[str, int, float]]
+
+
+class HistoryFile(BaseModel):
+    name: str
+    url: str

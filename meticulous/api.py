@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from typing import IO, Any, Callable, Dict, List, Optional, Self, Union, get_args
+from datetime import datetime
 
 import requests
 import socketio
+import zstandard as zstd
 from pydantic import TypeAdapter
 
 from .api_types import (
@@ -14,6 +16,7 @@ from .api_types import (
     ButtonEvent,
     ChangeProfileResponse,
     Communication,
+    HistoryFile,
     LastProfile,
     MachineInfo,
     Notification,
@@ -310,3 +313,86 @@ class Api:
             return None
         else:
             return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_history_dates(self) -> Union[List[HistoryFile], APIError]:
+        """Get list of dates available in history."""
+        response = self.session.get(f"{self.base_url}/api/v1/history/files/")
+        if response.status_code == 200:
+            return TypeAdapter(List[HistoryFile]).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_shot_files(self, date_str: str) -> Union[List[HistoryFile], APIError]:
+        """Get list of shot files for a specific date (YYYY-MM-DD)."""
+        response = self.session.get(f"{self.base_url}/api/v1/history/files/{date_str}")
+        if response.status_code == 200:
+            return TypeAdapter(List[HistoryFile]).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_shot_log(self, date_str: str, filename: str) -> Union[Dict[str, Any], APIError]:
+        """Get and parse a specific shot log file.
+        
+        Handles .zst decompression if needed.
+        """
+        # The filename in the list might differ from the URL suffix
+        # We construct the URL. If the file list says url is "21:04:06.shot.json.zst", use that.
+        # Ideally the user passes the 'url' field from the get_shot_files result.
+        # But if they pass just the name "21:04:06.shot.json", we might need to check extension.
+        
+        # We will assume 'filename' is the one to append to the URL path.
+        # If it comes from get_shot_files(), use the 'url' field.
+        
+        url = f"{self.base_url}/api/v1/history/files/{date_str}/{filename}"
+        response = self.session.get(url)
+        
+        if response.status_code != 200:
+            # Try to handle APIError if json, otherwise return generic error
+            try:
+                return TypeAdapter(APIError).validate_python(response.json())
+            except Exception:
+                 return APIError(status=str(response.status_code), error=f"Failed to fetch log: {response.text}")
+
+        content = response.content
+        
+        # Check if it is zstd compressed (magic number 0xFD2FB528)
+        if content.startswith(b'\x28\xb5\x2f\xfd'):
+            try:
+                dctx = zstd.ZstdDecompressor()
+                content = dctx.decompress(content)
+            except zstd.ZstdError as e:
+                 return APIError(status="Decompression Error", error=str(e))
+        
+        try:
+            import json
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            return APIError(status="JSON Parse Error", error=str(e))
+
+    def get_last_shot_log(self) -> Union[Dict[str, Any], APIError]:
+        """Convenience method to get the absolutely latest shot log."""
+        # 1. Get dates
+        dates = self.get_history_dates()
+        if isinstance(dates, APIError):
+            return dates
+        if not dates:
+            return APIError(status="No Data", error="No history dates found")
+            
+        # Sort dates descending (names are YYYY-MM-DD so string sort works)
+        dates.sort(key=lambda x: x.name, reverse=True)
+        latest_date = dates[0].name
+        
+        # 2. Get files for latest date
+        files = self.get_shot_files(latest_date)
+        if isinstance(files, APIError):
+            return files
+        if not files:
+            return APIError(status="No Data", error=f"No shot files found for {latest_date}")
+            
+        # Sort files descending (names are HH:MM:SS.shot.json)
+        files.sort(key=lambda x: x.name, reverse=True)
+        latest_file = files[0]
+        
+        # 3. Fetch log
+        # Use 'url' field which includes .zst extension usually
+        return self.get_shot_log(latest_date, latest_file.url)

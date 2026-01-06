@@ -22,21 +22,21 @@ class Variable(BaseModel):
 
 
 class Dynamics(BaseModel):
-    points: List[List[float]]
+    points: List[List[Union[float, str]]]
     over: str
     interpolation: str
 
 
 class ExitTrigger(BaseModel):
     type: str
-    value: float
+    value: Union[float, str]
     relative: Optional[bool] = None
     comparison: Optional[str] = None
 
 
 class Limit(BaseModel):
     type: str
-    value: float
+    value: Union[float, str]
 
 
 class Stage(BaseModel):
