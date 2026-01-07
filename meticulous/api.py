@@ -24,8 +24,6 @@ from .api_types import (
     HistoryResponse,
     HistoryStats,
     LastProfile,
-    ManufacturingMenuItems,
-    ManufacturingSettings,
     MachineInfo,
     Notification,
     NotificationData,
@@ -37,7 +35,6 @@ from .api_types import (
     ProfileEvent,
     RateShotResponse,
     Regions,
-    RootPasswordResponse,
     Settings,
     ShotRatingResponse,
     StatusData,
@@ -45,7 +42,6 @@ from .api_types import (
     WiFiConfig,
     WiFiConnectRequest,
     WiFiNetwork,
-    WifiStatus,
 )
 
 
@@ -240,7 +236,6 @@ class Api:
             return TypeAdapter(APIError).validate_python(response.json())
 
     def get_wifi_config(self) -> Union[WiFiConfig, APIError]:
-        """Deprecated: Use get_wifi_status() for full WiFi information."""
         response = self.session.get(f"{self.base_url}/api/v1/wifi/config")
         if response.status_code == 200:
             json_data = response.json()
@@ -462,13 +457,6 @@ class Api:
         else:
             return TypeAdapter(APIError).validate_python(response.json())
 
-    def get_root_password(self) -> Union[RootPasswordResponse, APIError]:
-        response = self.session.get(f"{self.base_url}/api/v1/machine/root-password")
-        if response.status_code == 200:
-            return TypeAdapter(RootPasswordResponse).validate_python(response.json())
-        else:
-            return TypeAdapter(APIError).validate_python(response.json())
-
     def set_time(self, date_time: datetime) -> Union[Regions, APIError]:
         response = self.session.post(
             f"{self.base_url}/api/v1/machine/time",
@@ -496,28 +484,4 @@ class Api:
         else:
             return TypeAdapter(APIError).validate_python(response.json())
 
-    def get_manufacturing_menu_items(self) -> Union[ManufacturingMenuItems, APIError]:
-        response = self.session.get(f"{self.base_url}/api/v1/manufacturing")
-        if response.status_code == 200:
-            return TypeAdapter(ManufacturingMenuItems).validate_python(response.json())
-        else:
-            return TypeAdapter(APIError).validate_python(response.json())
 
-    def update_manufacturing_settings(
-        self, setting: ManufacturingSettings
-    ) -> Union[ManufacturingSettings, APIError]:
-        response = self.session.post(
-            f"{self.base_url}/api/v1/manufacturing",
-            json=setting.model_dump(exclude_none=True),
-        )
-        if response.status_code == 200:
-            return TypeAdapter(ManufacturingSettings).validate_python(response.json())
-        else:
-            return TypeAdapter(APIError).validate_python(response.json())
-
-    def get_wifi_status(self) -> Union[WifiStatus, APIError]:
-        response = self.session.get(f"{self.base_url}/api/v1/wifi/config")
-        if response.status_code == 200:
-            return TypeAdapter(WifiStatus).validate_python(response.json())
-        else:
-            return TypeAdapter(APIError).validate_python(response.json())
