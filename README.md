@@ -8,6 +8,8 @@ A comprehensive Python wrapper for the Meticulous espresso machine API.
 
 pyMeticulous provides a complete Python interface to the [Meticulous TypeScript API](https://github.com/MeticulousHome/meticulous-typescript-api), enabling programmatic control and monitoring of Meticulous espresso machines.
 
+**Version 0.2.0** brings comprehensive API parity with the TypeScript implementation, full type safety with Pydantic v2, and extensive test coverage.
+
 ## Features
 
 - **Profile Management**: Create, load, save, and manage espresso profiles
@@ -52,9 +54,19 @@ api.load_profile_by_id(profiles[0].id)
 api.execute_action(ActionType.START)
 ```
 
-## Documentation
+## API Reference
 
-For complete API documentation, see the [API Specification](./API_SPEC.md).
+For complete API documentation including all endpoints, parameters, and return types, see the [API Specification](./API_SPEC.md).
+
+Key capabilities:
+- Profile management (list, load, save, delete)
+- Real-time brewing data via Socket.IO
+- Shot history search and statistics
+- Machine control (start, stop, tare, preheat, calibration)
+- WiFi configuration and network scanning
+- Settings management
+- Firmware updates
+- Device information and diagnostics
 
 ## Examples
 
@@ -117,20 +129,6 @@ api.connect_to_socket()
 
 api.disconnect_socket()
 ```
-
-## API Reference
-
-For detailed API documentation including all endpoints, parameters, and return types, see [API_SPEC.md](./API_SPEC.md).
-
-Key capabilities:
-- Profile management (list, load, save, delete)
-- Real-time brewing data via Socket.IO
-- Shot history search and statistics
-- Machine control (start, stop, tare, preheat, calibration)
-- WiFi configuration and network scanning
-- Settings management
-- Firmware updates
-- Device information and diagnostics
 
 ## Error Handling
 
