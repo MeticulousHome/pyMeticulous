@@ -10,12 +10,10 @@ from meticulous.api_types import (
     HistoryListingResponse,
     HistoryStats,
     HistoryQueryParams,
-    WifiStatus,
     OSStatusResponse,
     ShotRatingResponse,
     RateShotResponse,
     DefaultProfiles,
-    ManufacturingMenuItems,
     Regions,
 )
 from .mock_responses import (
@@ -23,13 +21,11 @@ from .mock_responses import (
     MOCK_DEVICE_INFO_RESPONSE,
     MOCK_HISTORY_LISTING_RESPONSE,
     MOCK_HISTORY_STATS_RESPONSE,
-    MOCK_WIFI_STATUS_RESPONSE,
     MOCK_SETTINGS_RESPONSE,
     MOCK_DEFAULT_PROFILES_RESPONSE,
     MOCK_SHOT_RATING_RESPONSE,
     MOCK_RATE_SHOT_RESPONSE,
     MOCK_OS_STATUS_RESPONSE,
-    MOCK_MANUFACTURING_MENU_RESPONSE,
     MOCK_REGIONS_RESPONSE,
 )
 
@@ -137,20 +133,6 @@ class TestApi(unittest.TestCase):
         self.assertEqual(result.byProfile[0].count, 75)
 
     @patch("requests.Session.get")
-    def test_get_wifi_status(self, mock_get: Mock) -> None:
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = MOCK_WIFI_STATUS_RESPONSE
-        mock_get.return_value = mock_response
-
-        result = self.api.get_wifi_status()
-
-        self.assertIsInstance(result, WifiStatus)
-        self.assertEqual(result.config.mode, "CLIENT")
-        self.assertTrue(result.status.connected)
-        self.assertEqual(result.status.hostname, "meticulous")
-
-    @patch("requests.Session.get")
     def test_get_settings(self, mock_get: Mock) -> None:
         mock_response = Mock(spec=Response)
         mock_response.status_code = 200
@@ -216,19 +198,6 @@ class TestApi(unittest.TestCase):
         self.assertIsInstance(result, OSStatusResponse)
         self.assertEqual(result.progress, 75)
         self.assertEqual(result.status, "updating")
-
-    @patch("requests.Session.get")
-    def test_get_manufacturing_menu_items(self, mock_get: Mock) -> None:
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = MOCK_MANUFACTURING_MENU_RESPONSE
-        mock_get.return_value = mock_response
-
-        result = self.api.get_manufacturing_menu_items()
-
-        self.assertIsInstance(result, ManufacturingMenuItems)
-        self.assertEqual(len(result.Elements), 1)
-        self.assertEqual(result.Elements[0].key, "calibration")
 
     @patch("requests.Session.get")
     def test_get_timezone_region(self, mock_get: Mock) -> None:

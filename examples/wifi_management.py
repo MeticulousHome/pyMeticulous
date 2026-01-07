@@ -2,7 +2,7 @@
 Example: WiFi Management
 
 This example demonstrates how to:
-- Get WiFi status and configuration
+- Get WiFi configuration
 - List available networks
 - Connect to a network
 - Manage saved networks
@@ -16,32 +16,18 @@ def main() -> None:
     api = Api(base_url="http://localhost:8080/")
 
     print("=" * 60)
-    print("WIFI STATUS")
+    print("WIFI CONFIGURATION")
     print("=" * 60)
 
-    # Get full WiFi status
-    wifi_status = api.get_wifi_status()
-    if isinstance(wifi_status, APIError):
-        print(f"Error fetching WiFi status: {wifi_status.error}")
+    # Get WiFi configuration
+    wifi_config = api.get_wifi_config()
+    if isinstance(wifi_config, APIError):
+        print(f"Error fetching WiFi config: {wifi_config.error}")
         return
 
     print("\nConfiguration:")
-    print(f"  Mode: {wifi_status.config.mode}")
-    print(f"  AP Name: {wifi_status.config.apName}")
-
-    print("\nConnection Status:")
-    print(f"  Connected: {wifi_status.status.connected}")
-    if wifi_status.status.connected:
-        print(f"  Network: {wifi_status.status.connection_name}")
-        print(f"  IP Addresses: {', '.join(wifi_status.status.ips)}")
-        print(f"  Gateway: {wifi_status.status.gateway}")
-        print(f"  DNS Servers: {', '.join(wifi_status.status.dns)}")
-        print(f"  MAC Address: {wifi_status.status.mac}")
-        print(f"  Hostname: {wifi_status.status.hostname}")
-
-    print("\nKnown Networks:")
-    for ssid in wifi_status.known_wifis.keys():
-        print(f"  - {ssid}")
+    print(f"  Mode: {wifi_config.mode}")
+    print(f"  AP Name: {wifi_config.apName}")
 
     print("\n" + "=" * 60)
     print("AVAILABLE NETWORKS")

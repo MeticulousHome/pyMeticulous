@@ -173,23 +173,6 @@ MOCK_HISTORY_STATS_RESPONSE = {
 }
 
 
-MOCK_WIFI_STATUS_RESPONSE = {
-    "config": {"mode": "CLIENT", "apName": "MeticulousAP", "apPassword": "secret123"},
-    "status": {
-        "connected": True,
-        "connection_name": "HomeWiFi",
-        "gateway": "192.168.1.1",
-        "routes": ["192.168.1.0/24"],
-        "ips": ["192.168.1.100"],
-        "dns": ["192.168.1.1", "8.8.8.8"],
-        "mac": "AA:BB:CC:DD:EE:FF",
-        "hostname": "meticulous",
-        "domains": ["local"],
-    },
-    "known_wifis": {"HomeWiFi": "saved", "OfficeWiFi": "saved"},
-}
-
-
 MOCK_SETTINGS_RESPONSE = {
     "allow_debug_sending": True,
     "auto_preheat": 5,
@@ -227,20 +210,6 @@ MOCK_OS_STATUS_RESPONSE = {
     "progress": 75,
     "status": "updating",
     "info": "Installing system updates",
-}
-
-
-MOCK_MANUFACTURING_MENU_RESPONSE = {
-    "Elements": [
-        {
-            "key": "calibration",
-            "label": "Calibration",
-            "options": [
-                {"name": "pressure", "type": "boolean", "value": True},
-                {"name": "flow", "type": "boolean", "value": False},
-            ],
-        }
-    ]
 }
 
 

@@ -132,12 +132,6 @@ class WifiSystemStatus(BaseModel):
     domains: List[str]
 
 
-class WifiStatus(BaseModel):
-    config: WiFiConfig
-    status: WifiSystemStatus
-    known_wifis: Dict[str, Union[Dict, str]]
-
-
 # Generate PartialWiFiConfig dynamically from WiFiConfig
 PartialWiFiConfig = create_model(
     "PartialWiFiConfig",
@@ -393,33 +387,7 @@ class RateShotResponse(BaseModel):
     rating: Optional[str] = None
 
 
-class Option(BaseModel):
-    name: str
-    type: str
-    value: bool
-
-
-class Element(BaseModel):
-    key: str
-    label: str
-    options: List[Option]
-
-
-class ManufacturingMenuItems(BaseModel):
-    Elements: List[Element]
-
-
-class ManufacturingSettings(BaseModel):
-    enabled: bool
-    first_normal_boot: bool
-    skip_stage: bool
-
-
 class DefaultProfiles(BaseModel):
     default: List[Profile]
     community: List[Profile]
 
-
-class RootPasswordResponse(BaseModel):
-    status: str
-    root_password: str

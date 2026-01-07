@@ -15,7 +15,6 @@ This document provides a complete reference for the pyMeticulous API wrapper.
 - [Device Information](#device-information)
 - [History & Shot Tracking](#history--shot-tracking)
 - [Notification Management](#notification-management)
-- [Manufacturing Features](#manufacturing-features)
 - [Firmware & Updates](#firmware--updates)
 - [Real-time Events (Socket.IO)](#real-time-events-socketio)
 - [Type Reference](#type-reference)
@@ -318,27 +317,9 @@ if not isinstance(result, APIError):
 
 ### `get_wifi_config() -> Union[WiFiConfig, APIError]`
 
-**Deprecated:** Use `get_wifi_status()` instead.
-
-Gets basic WiFi configuration.
+Gets WiFi configuration.
 
 **Returns:** WiFiConfig or APIError
-
-### `get_wifi_status() -> Union[WifiStatus, APIError]`
-
-Gets complete WiFi status including connection info and known networks.
-
-**Returns:** WifiStatus object or APIError
-
-**Example:**
-```python
-status = api.get_wifi_status()
-if not isinstance(status, APIError):
-    print(f"Mode: {status.config.mode}")
-    print(f"Connected: {status.status.connected}")
-    print(f"IP: {status.status.ips}")
-    print(f"Known networks: {list(status.known_wifis.keys())}")
-```
 
 ### `set_wifi_config(data: PartialWiFiConfig) -> Union[WiFiConfig, APIError]`
 
@@ -495,12 +476,6 @@ brightness = BrightnessRequest(
 )
 api.set_brightness(brightness)
 ```
-
-### `get_root_password() -> Union[RootPasswordResponse, APIError]`
-
-Gets the root password for SSH access.
-
-**Returns:** RootPasswordResponse with password or APIError
 
 ### `set_time(date_time: datetime) -> Union[Regions, APIError]`
 
@@ -681,23 +656,6 @@ ack = AcknowledgeNotificationRequest(
 )
 api.acknowledge_notification(ack)
 ```
-
-## Manufacturing Features
-
-### `get_manufacturing_menu_items() -> Union[ManufacturingMenuItems, APIError]`
-
-Gets manufacturing menu configuration.
-
-**Returns:** ManufacturingMenuItems or APIError
-
-### `update_manufacturing_settings(setting: ManufacturingSettings) -> Union[ManufacturingSettings, APIError]`
-
-Updates manufacturing settings.
-
-**Parameters:**
-- `setting` (ManufacturingSettings): Settings to update
-
-**Returns:** Updated ManufacturingSettings or APIError
 
 ## Firmware & Updates
 
