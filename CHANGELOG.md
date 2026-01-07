@@ -7,7 +7,7 @@ and this project adheres to Semantic Versioning (https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-## [0.2.0] - 2026-01-06
+## [0.2.0] - TBD
 
 ### Added
 - Device management: `get_device_info()`
@@ -26,14 +26,6 @@ and this project adheres to Semantic Versioning (https://semver.org/spec/v2.0.0.
 - `get_wifi_config()` returns basic WiFi configuration
 - Broadened `WiFiNetwork` with `type` and `security`
 - Version bumped to `0.2.0`
-
-### Removed
-- **Internal API endpoints** (per maintainer feedback - these will return 403 in future API versions):
-  - `get_wifi_status()` - Full WiFi status endpoint (use `get_wifi_config()` for basic config)
-  - `get_root_password()` - SSH root password endpoint
-  - `get_manufacturing_menu_items()` - Manufacturing menu endpoint
-  - `update_manufacturing_settings()` - Manufacturing settings endpoint
-- Removed associated types: `WifiStatus`, `ManufacturingMenuItems`, `ManufacturingSettings`, `RootPasswordResponse`, `Option`, `Element`
 
 ### Fixed
 - Pydantic v2 compatibility (removed `__root__` usage; structured types accordingly)
