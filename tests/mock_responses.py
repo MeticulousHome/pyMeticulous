@@ -117,3 +117,131 @@ MOCK_PROFILE_RESPONSE = {
     "display": {"image": "/api/v1/profile/image/ed03e12bb34fc419c5adfd7d993b50e7.png"},
     "last_changed": 1716585650.3912911,
 }
+
+
+MOCK_DEVICE_INFO_RESPONSE = {
+    "name": "meticulous",
+    "hostname": "meticulous-12345",
+    "firmware": "v1.2.3",
+    "mainVoltage": 230.5,
+    "color": "black",
+    "model_version": "v1",
+    "serial": "MT12345678",
+    "batch_number": "B001",
+    "build_date": "2024-01-15",
+    "software_version": "1.2.3",
+    "image_build_channel": "stable",
+    "image_version": "1.2.3",
+    "manufacturing": False,
+    "upgrade_first_boot": False,
+    "version_history": ["1.0.0", "1.1.0", "1.2.0", "1.2.3"],
+}
+
+
+MOCK_HISTORY_LISTING_RESPONSE = {
+    "history": [
+        {
+            "id": "shot-001",
+            "db_key": 1,
+            "time": 1704067200,
+            "file": "/data/shots/shot-001.json",
+            "name": "Morning espresso",
+            "profile": {
+                "db_key": 1,
+                "name": "Italian limbus",
+                "id": "05051ed3-9996-43e8-9da6-963f2b31d481",
+                "author": "meticulous",
+                "author_id": "d9123a0a-d3d7-40fd-a548-b81376e43f23",
+                "temperature": 90.5,
+                "final_weight": 40,
+                "stages": [],
+            },
+            "rating": "like",
+            "data": None,
+        }
+    ]
+}
+
+
+MOCK_HISTORY_STATS_RESPONSE = {
+    "totalSavedShots": 150,
+    "byProfile": [
+        {"name": "Italian limbus", "count": 75, "profileVersions": 3},
+        {"name": "Spring", "count": 50, "profileVersions": 2},
+        {"name": "Turbo", "count": 25, "profileVersions": 1},
+    ],
+}
+
+
+MOCK_WIFI_STATUS_RESPONSE = {
+    "config": {"mode": "CLIENT", "apName": "MeticulousAP", "apPassword": "secret123"},
+    "status": {
+        "connected": True,
+        "connection_name": "HomeWiFi",
+        "gateway": "192.168.1.1",
+        "routes": ["192.168.1.0/24"],
+        "ips": ["192.168.1.100"],
+        "dns": ["192.168.1.1", "8.8.8.8"],
+        "mac": "AA:BB:CC:DD:EE:FF",
+        "hostname": "meticulous",
+        "domains": ["local"],
+    },
+    "known_wifis": {"HomeWiFi": "saved", "OfficeWiFi": "saved"},
+}
+
+
+MOCK_SETTINGS_RESPONSE = {
+    "allow_debug_sending": True,
+    "auto_preheat": 5,
+    "auto_purge_after_shot": True,
+    "auto_start_shot": False,
+    "partial_retraction": 0,
+    "disallow_firmware_flashing": False,
+    "disable_ui_features": False,
+    "enable_sounds": True,
+    "debug_shot_data_retention_days": 30,
+    "idle_screen": "clock",
+    "reverse_scrolling": {"home": False, "keyboard": False, "menus": False},
+    "heating_timeout": 300,
+    "timezone_sync": "auto",
+    "time_zone": "America/New_York",
+    "usb_mode": "client",
+    "update_channel": "stable",
+    "ssh_enabled": False,
+}
+
+
+MOCK_DEFAULT_PROFILES_RESPONSE = {
+    "default": [MOCK_PROFILE_RESPONSE],
+    "community": [MOCK_PROFILE_RESPONSE],
+}
+
+
+MOCK_SHOT_RATING_RESPONSE = {"shot_id": 1, "rating": "like"}
+
+
+MOCK_RATE_SHOT_RESPONSE = {"status": "success", "shot_id": 1, "rating": "like"}
+
+
+MOCK_OS_STATUS_RESPONSE = {
+    "progress": 75,
+    "status": "updating",
+    "info": "Installing system updates",
+}
+
+
+MOCK_MANUFACTURING_MENU_RESPONSE = {
+    "Elements": [
+        {
+            "key": "calibration",
+            "label": "Calibration",
+            "options": [
+                {"name": "pressure", "type": "boolean", "value": True},
+                {"name": "flow", "type": "boolean", "value": False},
+            ],
+        }
+    ]
+}
+
+
+MOCK_REGIONS_RESPONSE = {"countries": ["US", "CA", "MX"], "cities": None}
