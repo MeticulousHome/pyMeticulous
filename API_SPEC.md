@@ -453,7 +453,6 @@ if not isinstance(info, APIError):
     print(f"Firmware: {info.firmware}")
     print(f"Software: {info.software_version}")
     print(f"Voltage: {info.mainVoltage}V")
-    print(f"Manufacturing mode: {info.manufacturing}")
 ```
 
 ### `set_brightness(brightness: BrightnessRequest) -> Union[None, APIError]`
@@ -767,7 +766,6 @@ Comprehensive device information.
 - `name`, `hostname`, `firmware`, `serial`, `model_version`
 - `mainVoltage` (float): Main voltage
 - `software_version`, `image_version`, `image_build_channel`
-- `manufacturing` (bool): Manufacturing mode status
 - `version_history` (List[str]): Software version history
 
 #### HistoryEntry

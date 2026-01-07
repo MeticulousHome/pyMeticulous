@@ -18,7 +18,7 @@ pyMeticulous provides a complete Python interface to the [Meticulous TypeScript 
 - **Settings Control**: Manage machine settings and preferences
 - **Firmware Updates**: Upload and install firmware updates
 - **Sound Themes**: Control sound playback and themes
-- **Manufacturing Features**: Access manufacturing settings and calibration
+- **Type Safety**: Pydantic models with full validation
 - **Comprehensive Error Handling**: All methods return typed responses or errors
 
 ## Installation
@@ -33,13 +33,14 @@ pip install pyMeticulous
 
 ```python
 from meticulous.api import Api
+from meticulous.api_types import ActionType
 
 # Initialize the API client
 api = Api(base_url="http://localhost:8080/")
 
 # Get device information
 device = api.get_device_info()
-print(f"Connected to: {device.name} (Serial: {device.serial})")
+print(f"Connected to: {device.name}")
 
 # List available profiles
 profiles = api.list_profiles()
@@ -48,7 +49,7 @@ for profile in profiles:
 
 # Load and start a profile
 api.load_profile_by_id(profiles[0].id)
-api.execute_action("start")
+api.execute_action(ActionType.START)
 ```
 
 ## Documentation
@@ -117,52 +118,19 @@ api.connect_to_socket()
 api.disconnect_socket()
 ```
 
-## Key Features
+## API Reference
 
-### Profile Management
-- List all profiles (partial or full)
-- Load profiles by ID or from JSON
-- Save and delete profiles
-- Get default and community profiles
-- Manage profile images
+For detailed API documentation including all endpoints, parameters, and return types, see [API_SPEC.md](./API_SPEC.md).
 
-### Action Control
-Execute machine actions:
-- `START`, `STOP`, `CONTINUE` - Control brewing
-- `TARE` - Zero the scale
-- `RESET` - Reset the machine
-- `PREHEAT` - Preheat to target temperature
-- `CALIBRATION`, `SCALE_MASTER_CALIBRATION` - Calibration modes
-
-### History & Shot Tracking
-- Search shot history with filters
-- Get statistics by profile
-- Rate shots (like/dislike)
-- Access detailed shot data with sensor readings
-
-### Device Management
-- Get comprehensive device information
-- Control display brightness
-- Manage timezone settings
-- Update firmware
-- Access root password for SSH
-
-### WiFi Configuration
-- Scan available networks
-- Connect to WiFi
-- Manage saved networks
-- Get connection status and IP information
-- Generate WiFi QR codes
-
-### Settings
-Configure machine behavior:
-- Auto-preheat duration
-- Auto-purge after shot
-- Auto-start shot
-- Sound settings
-- Update channel
-- SSH access
-- And many more...
+Key capabilities:
+- Profile management (list, load, save, delete)
+- Real-time brewing data via Socket.IO
+- Shot history search and statistics
+- Machine control (start, stop, tare, preheat, calibration)
+- WiFi configuration and network scanning
+- Settings management
+- Firmware updates
+- Device information and diagnostics
 
 ## Error Handling
 
@@ -184,26 +152,7 @@ else:
 
 ## Type Safety
 
-pyMeticulous uses Pydantic for data validation and type safety:
-
-```python
-from meticulous.api_types import BrightnessRequest, WiFiConnectRequest
-
-# All request types are validated
-brightness = BrightnessRequest(
-    brightness=80,
-    interpolation="curve",
-    animation_time=500
-)
-api.set_brightness(brightness)
-
-# Connect to WiFi with type-safe credentials
-wifi_creds = WiFiConnectRequest(
-    ssid="HomeNetwork",
-    password="password123"
-)
-api.connect_to_wifi(wifi_creds)
-```
+pyMeticulous uses Pydantic v2 for complete data validation and type safety. All API methods accept and return fully typed models. See the [Type Reference](./API_SPEC.md#type-reference) section in the API specification for complete model documentation.
 
 ## Development
 
