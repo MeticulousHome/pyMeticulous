@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import IO, Any, Callable, Dict, List, Optional, Self, Union, get_args
 
 import requests
@@ -11,24 +12,40 @@ from .api_types import (
     ActionType,
     Actuators,
     APIError,
+    BrightnessRequest,
     ButtonEvent,
     ChangeProfileResponse,
     Communication,
+    DefaultProfiles,
+    DeviceInfo,
+    HistoryEntry,
+    HistoryListingResponse,
+    HistoryQueryParams,
+    HistoryResponse,
+    HistoryStats,
     LastProfile,
+    ManufacturingMenuItems,
+    ManufacturingSettings,
     MachineInfo,
     Notification,
     NotificationData,
+    OSStatusResponse,
     PartialProfile,
     PartialSettings,
     PartialWiFiConfig,
     Profile,
     ProfileEvent,
+    RateShotResponse,
+    Regions,
+    RootPasswordResponse,
     Settings,
+    ShotRatingResponse,
     StatusData,
     Temperatures,
     WiFiConfig,
     WiFiConnectRequest,
     WiFiNetwork,
+    WifiStatus,
 )
 
 
@@ -223,9 +240,14 @@ class Api:
             return TypeAdapter(APIError).validate_python(response.json())
 
     def get_wifi_config(self) -> Union[WiFiConfig, APIError]:
+        """Deprecated: Use get_wifi_status() for full WiFi information."""
         response = self.session.get(f"{self.base_url}/api/v1/wifi/config")
         if response.status_code == 200:
-            return TypeAdapter(WiFiConfig).validate_python(response.json())
+            json_data = response.json()
+            # Extract just the config part for backward compatibility
+            if "config" in json_data:
+                return TypeAdapter(WiFiConfig).validate_python(json_data["config"])
+            return TypeAdapter(WiFiConfig).validate_python(json_data)
         else:
             return TypeAdapter(APIError).validate_python(response.json())
 
@@ -308,5 +330,194 @@ class Api:
         response = self.session.post(f"{self.base_url}/api/v1/sounds/theme/set/{theme}")
         if response.status_code == 200:
             return None
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_device_info(self) -> Union[DeviceInfo, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/machine")
+        if response.status_code == 200:
+            return TypeAdapter(DeviceInfo).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def set_brightness(self, brightness: BrightnessRequest) -> Union[None, APIError]:
+        response = self.session.post(
+            f"{self.base_url}/api/v1/machine/backlight",
+            json=brightness.model_dump(exclude_none=True),
+        )
+        if response.status_code == 200:
+            return None
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_default_profiles(self) -> Union[List[Profile], DefaultProfiles, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/profile/defaults")
+        if response.status_code == 200:
+            json_data = response.json()
+            # Check if it's a DefaultProfiles structure or just a list
+            if isinstance(json_data, dict) and (
+                "default" in json_data or "community" in json_data
+            ):
+                return TypeAdapter(DefaultProfiles).validate_python(json_data)
+            else:
+                return TypeAdapter(List[Profile]).validate_python(json_data)
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_profile_default_images(self) -> Union[List[str], APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/profile/image")
+        if response.status_code == 200:
+            return TypeAdapter(List[str]).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_profile_image_url(self, image: str) -> str:
+        if image.startswith("data:"):
+            return image
+        url = "/api/v1/profile/image/"
+        if not image.startswith(url):
+            image = url + image
+        return image
+
+    def get_profile_image(self, image: str) -> Union[bytes, APIError]:
+        response = self.session.get(self.get_profile_image_url(image), stream=True)
+        if response.headers.get("Content-Type", "").startswith("image/"):
+            return response.content
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_history_short_listing(self) -> Union[HistoryListingResponse, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/history")
+        if response.status_code == 200:
+            return TypeAdapter(HistoryListingResponse).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def search_history(
+        self, query: HistoryQueryParams
+    ) -> Union[HistoryResponse, APIError]:
+        response = self.session.post(
+            f"{self.base_url}/api/v1/history",
+            json=query.model_dump(exclude_none=True),
+        )
+        if response.status_code == 200:
+            return TypeAdapter(HistoryResponse).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def search_historical_profiles(
+        self, query: str
+    ) -> Union[HistoryListingResponse, APIError]:
+        response = self.session.get(
+            f"{self.base_url}/api/v1/history/search?query={query}"
+        )
+        if response.status_code == 200:
+            return TypeAdapter(HistoryListingResponse).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_current_shot(self) -> Union[HistoryEntry, None, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/history/current")
+        if response.status_code == 200:
+            json_data = response.json()
+            if json_data is None:
+                return None
+            return TypeAdapter(HistoryEntry).validate_python(json_data)
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_last_shot(self) -> Union[HistoryEntry, None, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/history/last")
+        if response.status_code == 200:
+            json_data = response.json()
+            if json_data is None:
+                return None
+            return TypeAdapter(HistoryEntry).validate_python(json_data)
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_history_statistics(self) -> Union[HistoryStats, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/history/stats")
+        if response.status_code == 200:
+            return TypeAdapter(HistoryStats).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_os_status(self) -> Union[OSStatusResponse, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/machine/OS_update_status")
+        if response.status_code == 200:
+            return TypeAdapter(OSStatusResponse).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_timezone_region(
+        self, region_type: str, conditional: str
+    ) -> Union[Regions, APIError]:
+        response = self.session.get(
+            f"{self.base_url}/api/v1/timezones/{region_type}",
+            params={"filter": conditional},
+        )
+        if response.status_code == 200:
+            return TypeAdapter(Regions).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_root_password(self) -> Union[RootPasswordResponse, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/machine/root-password")
+        if response.status_code == 200:
+            return TypeAdapter(RootPasswordResponse).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def set_time(self, date_time: datetime) -> Union[Regions, APIError]:
+        response = self.session.post(
+            f"{self.base_url}/api/v1/machine/time",
+            json={"date": date_time.isoformat()},
+        )
+        if response.status_code == 200:
+            return TypeAdapter(Regions).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def rate_shot(self, shot_id: int, rating: str) -> Union[RateShotResponse, APIError]:
+        response = self.session.post(
+            f"{self.base_url}/api/v1/history/rating/{shot_id}",
+            json={"rating": rating},
+        )
+        if response.status_code == 200:
+            return TypeAdapter(RateShotResponse).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_shot_rating(self, shot_id: int) -> Union[ShotRatingResponse, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/history/rating/{shot_id}")
+        if response.status_code == 200:
+            return TypeAdapter(ShotRatingResponse).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_manufacturing_menu_items(self) -> Union[ManufacturingMenuItems, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/manufacturing")
+        if response.status_code == 200:
+            return TypeAdapter(ManufacturingMenuItems).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def update_manufacturing_settings(
+        self, setting: ManufacturingSettings
+    ) -> Union[ManufacturingSettings, APIError]:
+        response = self.session.post(
+            f"{self.base_url}/api/v1/manufacturing",
+            json=setting.model_dump(exclude_none=True),
+        )
+        if response.status_code == 200:
+            return TypeAdapter(ManufacturingSettings).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_wifi_status(self) -> Union[WifiStatus, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/wifi/config")
+        if response.status_code == 200:
+            return TypeAdapter(WifiStatus).validate_python(response.json())
         else:
             return TypeAdapter(APIError).validate_python(response.json())
