@@ -10,7 +10,7 @@ This example demonstrates how to:
 from meticulous.api import Api, APIError
 
 
-def main():
+def main() -> None:
     # Initialize API
     api = Api(base_url="http://localhost:8080/")
 

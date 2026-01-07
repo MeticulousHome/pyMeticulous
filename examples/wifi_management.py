@@ -11,7 +11,7 @@ This example demonstrates how to:
 from meticulous.api import Api, APIError
 
 
-def main():
+def main() -> None:
     # Initialize API
     api = Api(base_url="http://localhost:8080/")
 
@@ -25,11 +25,11 @@ def main():
         print(f"Error fetching WiFi status: {wifi_status.error}")
         return
 
-    print(f"\nConfiguration:")
+    print("\nConfiguration:")
     print(f"  Mode: {wifi_status.config.mode}")
     print(f"  AP Name: {wifi_status.config.apName}")
 
-    print(f"\nConnection Status:")
+    print("\nConnection Status:")
     print(f"  Connected: {wifi_status.status.connected}")
     if wifi_status.status.connected:
         print(f"  Network: {wifi_status.status.connection_name}")
@@ -39,7 +39,7 @@ def main():
         print(f"  MAC Address: {wifi_status.status.mac}")
         print(f"  Hostname: {wifi_status.status.hostname}")
 
-    print(f"\nKnown Networks:")
+    print("\nKnown Networks:")
     for ssid in wifi_status.known_wifis.keys():
         print(f"  - {ssid}")
 
