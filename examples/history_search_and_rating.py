@@ -13,7 +13,7 @@ from meticulous.api import Api, APIError
 from meticulous.api_types import HistoryQueryParams
 
 
-def main():
+def main() -> None:
     # Initialize API
     api = Api(base_url="http://localhost:8080/")
 
@@ -60,6 +60,8 @@ def main():
     # Example: Rate the most recent shot
     if history.history and history.history[0].db_key is not None:
         latest_shot = history.history[0]
+        assert latest_shot.db_key is not None
+        shot_id = latest_shot.db_key
 
         print("=" * 60)
         print("RATING EXAMPLE")
@@ -68,7 +70,7 @@ def main():
         print(f"\nRating shot: {latest_shot.name}")
 
         # Rate as "like"
-        rating_response = api.rate_shot(latest_shot.db_key, "like")
+        rating_response = api.rate_shot(shot_id, "like")
         if isinstance(rating_response, APIError):
             print(f"Error rating shot: {rating_response.error}")
         else:
@@ -77,7 +79,7 @@ def main():
             )
 
         # Get the rating back
-        rating = api.get_shot_rating(latest_shot.db_key)
+        rating = api.get_shot_rating(shot_id)
         if not isinstance(rating, APIError):
             print(f"Current rating: {rating.rating}")
 
