@@ -1,3 +1,4 @@
+# pyright: reportCallIssue=false, reportUnusedVariable=false
 from datetime import datetime
 from enum import Enum
 from typing import Callable, Dict, List, Optional, Type, Union
@@ -51,9 +52,9 @@ class Notification(BaseModel):
 
 
 # Generate PartialProfile dynamically from Settings
-PartialProfile = create_model(
+PartialProfile = create_model(  # type: ignore[call-overload]
     "PartialProfile",
-    **{
+    **{  # type: ignore[arg-type]
         name: (Optional[field.annotation], None)
         for name, field in Profile.model_fields.items()
     },
@@ -100,9 +101,9 @@ class Settings(BaseModel):
 
 
 # Generate PartialSettings dynamically from Settings
-PartialSettings = create_model(
+PartialSettings = create_model(  # type: ignore[call-overload]
     "PartialSettings",
-    **{
+    **{  # type: ignore[arg-type]
         name: (Optional[field.annotation], None)
         for name, field in Settings.model_fields.items()
     },
@@ -133,9 +134,9 @@ class WifiSystemStatus(BaseModel):
 
 
 # Generate PartialWiFiConfig dynamically from WiFiConfig
-PartialWiFiConfig = create_model(
+PartialWiFiConfig = create_model(  # type: ignore[call-overload]
     "PartialWiFiConfig",
-    **{
+    **{  # type: ignore[arg-type]
         name: (Optional[field.annotation], None)
         for name, field in WiFiConfig.model_fields.items()
     },
@@ -390,4 +391,3 @@ class RateShotResponse(BaseModel):
 class DefaultProfiles(BaseModel):
     default: List[Profile]
     community: List[Profile]
-

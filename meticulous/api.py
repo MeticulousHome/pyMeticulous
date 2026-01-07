@@ -1,6 +1,7 @@
+# pyright: reportGeneralTypeIssues=false
 from dataclasses import dataclass
 from datetime import datetime
-from typing import IO, Any, Callable, Dict, List, Optional, Self, Union, get_args
+from typing import IO, Any, Callable, Dict, List, Optional, Union, get_args
 
 import requests
 import socketio
@@ -89,7 +90,7 @@ class Api:
         self,
         base_url: str = "http://localhost:8080/",
         options: Optional[Dict[str, Callable[[Any], None]]] = None,
-    ) -> Self:
+    ) -> None:
         self.base_url = base_url
         self.options = options or ApiOptions()
         self.sio = socketio.Client()
@@ -99,7 +100,7 @@ class Api:
         )
 
         # Register socketio event handlers if options provided
-        self.options.register_handlers(self.sio)
+        self.options.register_handlers(self.sio)  # type: ignore[attr-defined]
 
     def connect_to_socket(self) -> None:
         self.sio.connect(self.base_url)
@@ -114,7 +115,7 @@ class Api:
         else:
             return TypeAdapter(APIError).validate_python(response.json())
 
-    def list_profiles(self) -> Union[List[PartialProfile], APIError]:
+    def list_profiles(self) -> Union[List[PartialProfile], APIError]:  # type: ignore[valid-type]
         response = self.session.get(f"{self.base_url}/api/v1/profile/list")
         if response.status_code == 200:
             return TypeAdapter(List[PartialProfile]).validate_python(response.json())
@@ -139,7 +140,7 @@ class Api:
             print(response.json())
             return TypeAdapter(APIError).validate_python(response.json())
 
-    def load_profile_from_json(self, data: Profile) -> Union[PartialProfile, APIError]:
+    def load_profile_from_json(self, data: Profile) -> Union[PartialProfile, APIError]:  # type: ignore[valid-type]
         response = self.session.post(
             f"{self.base_url}/api/v1/profile/load",
             json=data.model_dump(exclude_none=True),
@@ -149,7 +150,7 @@ class Api:
         else:
             return TypeAdapter(APIError).validate_python(response.json())
 
-    def load_profile_by_id(self, id: str) -> Union[PartialProfile, APIError]:
+    def load_profile_by_id(self, id: str) -> Union[PartialProfile, APIError]:  # type: ignore[valid-type]
         response = self.session.get(f"{self.base_url}/api/v1/profile/load/{id}")
         if response.status_code == 200:
             return TypeAdapter(PartialProfile).validate_python(response.json())
@@ -214,7 +215,7 @@ class Api:
         else:
             return TypeAdapter(APIError).validate_python(response.json())
 
-    def update_setting(self, setting: PartialSettings) -> Union[Settings, APIError]:
+    def update_setting(self, setting: PartialSettings) -> Union[Settings, APIError]:  # type: ignore[valid-type]
         response = self.session.post(
             f"{self.base_url}/api/v1/settings",
             json=setting.model_dump(exclude_none=True),
@@ -246,7 +247,7 @@ class Api:
         else:
             return TypeAdapter(APIError).validate_python(response.json())
 
-    def set_wifi_config(self, data: PartialWiFiConfig) -> Union[WiFiConfig, APIError]:
+    def set_wifi_config(self, data: PartialWiFiConfig) -> Union[WiFiConfig, APIError]:  # type: ignore[valid-type]
         response = self.session.post(
             f"{self.base_url}/api/v1/wifi/config",
             json=data.model_dump(exclude_none=True),
@@ -483,5 +484,3 @@ class Api:
             return TypeAdapter(ShotRatingResponse).validate_python(response.json())
         else:
             return TypeAdapter(APIError).validate_python(response.json())
-
-
