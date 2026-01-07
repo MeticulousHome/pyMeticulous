@@ -18,24 +18,28 @@ and this project adheres to Semantic Versioning (https://semver.org/spec/v2.0.0.
 - Shot rating: `rate_shot()`, `get_shot_rating()`
 - OS update: `get_os_status()`
 - Time & timezone: `set_time()`, `get_timezone_region()`
-- Root access: `get_root_password()`
-- Manufacturing features: `get_manufacturing_menu_items()`, `update_manufacturing_settings()`
-- WiFi status: `get_wifi_status()` with full system details
 - Real-time models expanded (`StatusData`, `SensorData`, `SetpointData`)
 - Extended `Settings` model (reverse scrolling, timeouts, timezone, update channel, SSH, etc.)
 - New `ActionType`s: `CONTINUE`, `PREHEAT`, `SCALE_MASTER_CALIBRATION`
 
 ### Changed
-- `get_wifi_config()` remains for compatibility but returns only the `config` portion when full status is provided
+- `get_wifi_config()` returns basic WiFi configuration
 - Broadened `WiFiNetwork` with `type` and `security`
 - Version bumped to `0.2.0`
 
-### Deprecated
-- `get_wifi_config()` is superseded by `get_wifi_status()`; prefer the latter
+### Removed
+- **Internal API endpoints** (per maintainer feedback - these will return 403 in future API versions):
+  - `get_wifi_status()` - Full WiFi status endpoint (use `get_wifi_config()` for basic config)
+  - `get_root_password()` - SSH root password endpoint
+  - `get_manufacturing_menu_items()` - Manufacturing menu endpoint
+  - `update_manufacturing_settings()` - Manufacturing settings endpoint
+- Removed associated types: `WifiStatus`, `ManufacturingMenuItems`, `ManufacturingSettings`, `RootPasswordResponse`, `Option`, `Element`
 
 ### Fixed
 - Pydantic v2 compatibility (removed `__root__` usage; structured types accordingly)
-- Tests expanded and stabilized; 19 tests passing
+- Type checking warnings for Pydantic dynamic model creation
+- `__init__` return type corrected from `Self` to `None`
+- Tests updated; 17 tests passing
 
 ### Security
 - No security-specific changes in this release
