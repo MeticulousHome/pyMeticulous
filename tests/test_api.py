@@ -1,3 +1,4 @@
+import json
 import unittest
 from unittest.mock import Mock, patch
 
@@ -27,6 +28,10 @@ from .mock_responses import (
     MOCK_RATE_SHOT_RESPONSE,
     MOCK_OS_STATUS_RESPONSE,
     MOCK_REGIONS_RESPONSE,
+    MOCK_HISTORY_DATES_RESPONSE,
+    MOCK_SHOT_FILES_RESPONSE,
+    MOCK_SHOT_LOG_RESPONSE,
+    MOCK_SHOT_LOG_ZST,
 )
 
 
@@ -222,6 +227,86 @@ class TestApi(unittest.TestCase):
         result = self.api.get_current_shot()
 
         self.assertIsNone(result)
+
+    @patch("requests.Session.get")
+    def test_get_history_dates(self, mock_get: Mock) -> None:
+        mock_response = Mock(spec=Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = MOCK_HISTORY_DATES_RESPONSE
+        mock_get.return_value = mock_response
+
+        result = self.api.get_history_dates()
+
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0].name, "2024-01-02")
+        self.assertEqual(result[0].url, "2024-01-02")
+
+    @patch("requests.Session.get")
+    def test_get_shot_files(self, mock_get: Mock) -> None:
+        mock_response = Mock(spec=Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = MOCK_SHOT_FILES_RESPONSE
+        mock_get.return_value = mock_response
+
+        result = self.api.get_shot_files("2024-01-02")
+
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0].url, "21:04:06.shot.json")
+
+    @patch("requests.Session.get")
+    def test_get_shot_log_plain_json(self, mock_get: Mock) -> None:
+        mock_response = Mock(spec=Response)
+        mock_response.status_code = 200
+        mock_response.content = json.dumps(MOCK_SHOT_LOG_RESPONSE).encode()
+        mock_get.return_value = mock_response
+
+        result = self.api.get_shot_log("2024-01-02", "21:04:06.shot.json")
+
+        self.assertEqual(result["shot"], "latest")
+        self.assertEqual(result["value"], 1)
+
+    @patch("requests.Session.get")
+    def test_get_shot_log_zst(self, mock_get: Mock) -> None:
+        mock_response = Mock(spec=Response)
+        mock_response.status_code = 200
+        mock_response.content = MOCK_SHOT_LOG_ZST
+        mock_get.return_value = mock_response
+
+        result = self.api.get_shot_log("2024-01-02", "20:55:00.shot.json.zst")
+
+        self.assertEqual(result["shot"], "latest")
+
+    @patch("requests.Session.get")
+    def test_get_shot_log_error(self, mock_get: Mock) -> None:
+        mock_response = Mock(spec=Response)
+        mock_response.status_code = 404
+        mock_response.json.return_value = {"error": "not found", "status": "404"}
+        mock_get.return_value = mock_response
+
+        result = self.api.get_shot_log("2024-01-02", "missing.shot.json")
+
+        self.assertIsInstance(result, APIError)
+        self.assertEqual(result.error, "not found")
+
+    @patch("requests.Session.get")
+    def test_get_last_shot_log(self, mock_get: Mock) -> None:
+        dates_response = Mock(spec=Response)
+        dates_response.status_code = 200
+        dates_response.json.return_value = MOCK_HISTORY_DATES_RESPONSE
+
+        files_response = Mock(spec=Response)
+        files_response.status_code = 200
+        files_response.json.return_value = MOCK_SHOT_FILES_RESPONSE
+
+        log_response = Mock(spec=Response)
+        log_response.status_code = 200
+        log_response.content = json.dumps(MOCK_SHOT_LOG_RESPONSE).encode()
+
+        mock_get.side_effect = [dates_response, files_response, log_response]
+
+        result = self.api.get_last_shot_log()
+
+        self.assertEqual(result["shot"], "latest")
 
 
 if __name__ == "__main__":

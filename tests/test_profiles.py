@@ -37,12 +37,17 @@ class TestProfile(unittest.TestCase):
         self.assertEqual(len(profile.variables), 1)
         self.assertEqual(profile.variables[0].name, "Pressure")
         self.assertEqual(profile.variables[0].key, "pressure_1")
-        self.assertEqual(profile.variables[0].value, 8)
+        self.assertEqual(profile.variables[0].value, "$pressure_var")
         self.assertEqual(len(profile.stages), 2)
         self.assertEqual(profile.stages[0].name, "Preinfusion")
-        self.assertEqual(profile.stages[0].dynamics.points, [[0, 4]])
+        self.assertEqual(
+            profile.stages[0].dynamics.points,
+            [[0, "${flow_start}"], [5, "$flow_mid"]],
+        )
         self.assertEqual(profile.stages[0].exit_triggers[0].type, "time")
+        self.assertEqual(profile.stages[0].exit_triggers[0].value, "${time_exit}")
         self.assertEqual(profile.stages[1].limits[0].type, "flow")
+        self.assertEqual(profile.stages[1].limits[0].value, "$flow_limit")
         self.assertEqual(
             profile.display.image,
             "/api/v1/profile/image/ed03e12bb34fc419c5adfd7d993b50e7.png",

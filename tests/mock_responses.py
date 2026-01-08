@@ -1,3 +1,8 @@
+import json
+
+import zstandard as zstd
+
+
 MOCK_PROFILE_LIST_RESPONSE = [
     {
         "name": "Italian limbus",
@@ -14,7 +19,12 @@ MOCK_PROFILE_LIST_RESPONSE = [
         "temperature": 90.5,
         "final_weight": 40,
         "variables": [
-            {"name": "Pressure", "key": "pressure_1", "type": "pressure", "value": 8}
+            {
+                "name": "Pressure",
+                "key": "pressure_1",
+                "type": "pressure",
+                "value": "$pressure_var",
+            }
         ],
         "display": {
             "image": "/api/v1/profile/image/ed03e12bb34fc419c5adfd7d993b50e7.png"
@@ -45,7 +55,12 @@ MOCK_PROFILE_LIST_RESPONSE = [
         "temperature": 90.5,
         "final_weight": 40,
         "variables": [
-            {"name": "Pressure", "key": "pressure_1", "type": "pressure", "value": 8}
+            {
+                "name": "Pressure",
+                "key": "pressure_1",
+                "type": "pressure",
+                "value": "$pressure_var",
+            }
         ],
         "last_changed": 1717635853.8201907,
     },
@@ -86,18 +101,42 @@ MOCK_PROFILE_RESPONSE = {
     "temperature": 90.5,
     "final_weight": 40,
     "variables": [
-        {"name": "Pressure", "key": "pressure_1", "type": "pressure", "value": 8}
+        {
+            "name": "Pressure",
+            "key": "pressure_1",
+            "type": "pressure",
+            "value": "$pressure_var",
+        }
     ],
     "stages": [
         {
             "name": "Preinfusion",
             "key": "preinfusion_1",
             "type": "flow",
-            "dynamics": {"points": [[0, 4]], "over": "time", "interpolation": "linear"},
+            "dynamics": {
+                "points": [[0, "${flow_start}"], [5, "$flow_mid"]],
+                "over": "time",
+                "interpolation": "linear",
+            },
             "exit_triggers": [
-                {"type": "time", "value": 30, "relative": True, "comparison": ">="},
-                {"type": "weight", "value": 0.3, "relative": True, "comparison": ">="},
-                {"type": "pressure", "value": 8, "relative": False, "comparison": ">="},
+                {
+                    "type": "time",
+                    "value": "${time_exit}",
+                    "relative": True,
+                    "comparison": ">=",
+                },
+                {
+                    "type": "weight",
+                    "value": "$weight_exit",
+                    "relative": True,
+                    "comparison": ">=",
+                },
+                {
+                    "type": "pressure",
+                    "value": "$pressure_exit",
+                    "relative": False,
+                    "comparison": ">=",
+                },
             ],
             "limits": [],
         },
@@ -106,17 +145,40 @@ MOCK_PROFILE_RESPONSE = {
             "key": "infusion_1",
             "type": "pressure",
             "dynamics": {
-                "points": [[0, 0], [10, 8], [20, 8]],
+                "points": [[0, 0], [10, "$pressure_ramp"], [20, "$pressure_hold"]],
                 "over": "time",
                 "interpolation": "curve",
             },
             "exit_triggers": [],
-            "limits": [{"type": "flow", "value": 3}],
+            "limits": [{"type": "flow", "value": "$flow_limit"}],
         },
     ],
     "display": {"image": "/api/v1/profile/image/ed03e12bb34fc419c5adfd7d993b50e7.png"},
     "last_changed": 1716585650.3912911,
 }
+
+
+MOCK_HISTORY_DATES_RESPONSE = [
+    {"name": "2024-01-02", "url": "2024-01-02"},
+    {"name": "2024-01-01", "url": "2024-01-01"},
+]
+
+
+MOCK_SHOT_FILES_RESPONSE = [
+    {"name": "21:04:06.shot.json", "url": "21:04:06.shot.json"},
+    {"name": "20:55:00.shot.json.zst", "url": "20:55:00.shot.json.zst"},
+]
+
+
+MOCK_SHOT_LOG_RESPONSE = {"shot": "latest", "value": 1}
+
+
+def _build_zst_payload(payload: dict) -> bytes:
+    compressor = zstd.ZstdCompressor()
+    return compressor.compress(json.dumps(payload).encode("utf-8"))
+
+
+MOCK_SHOT_LOG_ZST = _build_zst_payload(MOCK_SHOT_LOG_RESPONSE)
 
 
 MOCK_DEVICE_INFO_RESPONSE = {
