@@ -246,6 +246,11 @@ class MachineInfo(BaseModel):
     esp_info: Dict[str, Union[str, int, float]]
 
 
+class HistoryFile(BaseModel):
+    name: str
+    url: str
+
+
 class DeviceInfo(BaseModel):
     name: str
     hostname: str

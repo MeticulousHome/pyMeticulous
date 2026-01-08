@@ -14,10 +14,12 @@ and this project adheres to Semantic Versioning (https://semver.org/spec/v2.0.0.
 - Display control: `set_brightness()` with interpolation and animation
 - Default profiles: `get_default_profiles()` and profile image helpers
 - History: `get_history_short_listing()`, `search_history()`, `search_historical_profiles()`
+- History logs: `get_history_dates()`, `get_shot_files()`, `get_shot_log()`, `get_last_shot_log()` (with `.zst` decompression)
 - History stats: `get_history_statistics()`
 - Shot rating: `rate_shot()`, `get_shot_rating()`
 - OS update: `get_os_status()`
 - Time & timezone: `set_time()`, `get_timezone_region()`
+- Variable profiles: string values supported in variables, dynamics, limits, and triggers
 - Real-time models expanded (`StatusData`, `SensorData`, `SetpointData`)
 - Extended `Settings` model (reverse scrolling, timeouts, timezone, update channel, SSH, etc.)
 - New `ActionType`s: `CONTINUE`, `PREHEAT`, `SCALE_MASTER_CALIBRATION`
@@ -25,6 +27,7 @@ and this project adheres to Semantic Versioning (https://semver.org/spec/v2.0.0.
 ### Changed
 - `get_wifi_config()` returns basic WiFi configuration
 - Broadened `WiFiNetwork` with `type` and `security`
+- Added `zstandard` dependency for shot log decompression
 - Version bumped to `0.2.0`
 
 ### Fixed

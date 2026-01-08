@@ -590,6 +590,32 @@ if not isinstance(stats, APIError):
         print(f"{profile_stat.name}: {profile_stat.count} shots")
 ```
 
+### `get_history_dates() -> Union[List[HistoryFile], APIError]`
+
+Lists the available history date buckets.
+
+**Returns:** List of HistoryFile entries or APIError
+
+### `get_shot_files(date_str: str) -> Union[List[HistoryFile], APIError]`
+
+Lists shot log files for a given date (YYYY-MM-DD).
+
+**Returns:** List of HistoryFile entries or APIError
+
+### `get_shot_log(date_str: str, filename: str) -> Union[Dict[str, Any], APIError]`
+
+Fetches and parses a specific shot log file. Handles `.zst` decompression automatically.
+
+**Parameters:**
+- `date_str` (str): Date bucket (YYYY-MM-DD)
+- `filename` (str): File name or `url` from `get_shot_files`
+
+**Returns:** Parsed JSON dict or APIError
+
+### `get_last_shot_log() -> Union[Dict[str, Any], APIError]`
+
+Convenience to fetch the most recent shot log (chooses latest date and latest file).
+
 ### `rate_shot(shot_id: int, rating: str) -> Union[RateShotResponse, APIError]`
 
 Rates a shot.
@@ -741,7 +767,7 @@ Complete espresso profile with stages, temperature, and metadata.
 - `temperature` (float): Target temperature in Celsius
 - `final_weight` (float): Target shot weight in grams
 - `stages` (List[Stage]): Profile stages
-- `variables` (List[Variable], optional): Custom variables
+- `variables` (List[Variable], optional): Custom variables (numeric or string values)
 - `display` (Display, optional): Display settings
 - `previous_authors` (List[PreviousAuthor], optional): Author history
 
@@ -779,6 +805,13 @@ Complete shot record with all data points.
 - `profile` (HistoryProfile): Profile used
 - `data` (List[HistoryDataPoint]): Time-series data
 - `rating` (str, optional): User rating
+
+#### HistoryFile
+Represents a file entry for shot logs.
+
+**Fields:**
+- `name` (str): Display name (e.g., `21:04:06.shot.json`)
+- `url` (str): Path-safe filename (may include `.zst`)
 
 #### Settings
 Machine configuration settings.

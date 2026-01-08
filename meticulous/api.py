@@ -3,8 +3,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import IO, Any, Callable, Dict, List, Optional, Union, get_args
 
+import json
 import requests
 import socketio
+import zstandard as zstd
 from pydantic import TypeAdapter
 
 from .api_types import (
@@ -24,6 +26,7 @@ from .api_types import (
     HistoryQueryParams,
     HistoryResponse,
     HistoryStats,
+    HistoryFile,
     LastProfile,
     MachineInfo,
     Notification,
@@ -438,6 +441,65 @@ class Api:
             return TypeAdapter(HistoryStats).validate_python(response.json())
         else:
             return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_history_dates(self) -> Union[List[HistoryFile], APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/history/files/")
+        if response.status_code == 200:
+            return TypeAdapter(List[HistoryFile]).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_shot_files(self, date_str: str) -> Union[List[HistoryFile], APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/history/files/{date_str}")
+        if response.status_code == 200:
+            return TypeAdapter(List[HistoryFile]).validate_python(response.json())
+        else:
+            return TypeAdapter(APIError).validate_python(response.json())
+
+    def get_shot_log(self, date_str: str, filename: str) -> Union[Dict[str, Any], APIError]:
+        url = f"{self.base_url}/api/v1/history/files/{date_str}/{filename}"
+        response = self.session.get(url)
+
+        if response.status_code != 200:
+            try:
+                return TypeAdapter(APIError).validate_python(response.json())
+            except Exception:
+                return APIError(status=str(response.status_code), error=f"Failed to fetch log: {response.text}")
+
+        content = response.content
+
+        # zstd magic number: 0xFD2FB528, stored little-endian in the byte stream
+        if content.startswith(b"\x28\xb5\x2f\xfd"):
+            try:
+                content = zstd.ZstdDecompressor().decompress(content)
+            except zstd.ZstdError as exc:
+                return APIError(status="Decompression Error", error=str(exc))
+
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError as exc:
+            return APIError(status="JSON Parse Error", error=str(exc))
+
+    def get_last_shot_log(self) -> Union[Dict[str, Any], APIError]:
+        dates = self.get_history_dates()
+        if isinstance(dates, APIError):
+            return dates
+        if not dates:
+            return APIError(status="No Data", error="No history dates found")
+
+        dates.sort(key=lambda date: date.name, reverse=True)
+        latest_date = dates[0].name
+
+        files = self.get_shot_files(latest_date)
+        if isinstance(files, APIError):
+            return files
+        if not files:
+            return APIError(status="No Data", error=f"No shot files found for {latest_date}")
+
+        files.sort(key=lambda file: file.name, reverse=True)
+        latest_file = files[0]
+
+        return self.get_shot_log(latest_date, latest_file.url)
 
     def get_os_status(self) -> Union[OSStatusResponse, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/machine/OS_update_status")
