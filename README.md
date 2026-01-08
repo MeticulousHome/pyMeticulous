@@ -14,7 +14,7 @@ pyMeticulous provides a complete Python interface to the [Meticulous TypeScript 
 
 - **Profile Management**: Create, load, save, and manage espresso profiles
 - **Real-time Monitoring**: Socket.IO integration for live brewing data
-- **Shot History**: Search, track, and rate espresso shots
+- **Shot History**: Search, track, rate, and retrieve shot logs (with .zst decompression)
 - **Device Control**: Execute actions (start, stop, tare, preheat, calibration)
 - **WiFi Management**: Configure network settings and scan available networks
 - **Settings Control**: Manage machine settings and preferences
@@ -61,7 +61,7 @@ For complete API documentation including all endpoints, parameters, and return t
 Key capabilities:
 - Profile management (list, load, save, delete)
 - Real-time brewing data via Socket.IO
-- Shot history search and statistics
+- Shot history search, logs (.zst decompression), and statistics
 - Machine control (start, stop, tare, preheat, calibration)
 - WiFi configuration and network scanning
 - Settings management
@@ -193,6 +193,7 @@ pyMeticulous/
 - pydantic >= 2.7.3
 - python-socketio >= 5.11.2
 - websocket-client >= 1.8.0
+- zstandard >= 0.22.0 (for shot log decompression)
 
 ## Contributing
 

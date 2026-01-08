@@ -9,7 +9,8 @@ dependencies = [
     "requests>=2.32.3",
     "pydantic>=2.7.3",
     "python-socketio>=5.11.2",
-    "websocket-client>=1.8.0"
+    "websocket-client>=1.8.0",
+    "zstandard>=0.22.0"
 ]
 
 [build-system]
