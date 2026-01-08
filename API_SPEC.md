@@ -767,7 +767,7 @@ Complete espresso profile with stages, temperature, and metadata.
 - `temperature` (float): Target temperature in Celsius
 - `final_weight` (float): Target shot weight in grams
 - `stages` (List[Stage]): Profile stages
-- `variables` (List[Variable], optional): Custom variables (numeric or string values)
+- `variables` (List[Variable], optional): Custom variables (numeric or string values for variable substitution)
 - `display` (Display, optional): Display settings
 - `previous_authors` (List[PreviousAuthor], optional): Author history
 
