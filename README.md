@@ -56,7 +56,7 @@ api.execute_action(ActionType.START)
 
 ## API Reference
 
-For complete API documentation including all endpoints, parameters, and return types, see the [API Specification](./API_SPEC.md).
+For complete API documentation including all endpoints, parameters, and return types, see the [API Specification](https://github.com/MeticulousHome/pyMeticulous/blob/main/API_SPEC.md).
 
 Key capabilities:
 - Profile management (list, load, save, delete)
