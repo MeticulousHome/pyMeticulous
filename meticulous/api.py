@@ -456,7 +456,9 @@ class Api:
         else:
             return TypeAdapter(APIError).validate_python(response.json())
 
-    def get_shot_log(self, date_str: str, filename: str) -> Union[Dict[str, Any], APIError]:
+    def get_shot_log(
+        self, date_str: str, filename: str
+    ) -> Union[Dict[str, Any], APIError]:
         url = f"{self.base_url}/api/v1/history/files/{date_str}/{filename}"
         response = self.session.get(url)
 
@@ -464,7 +466,10 @@ class Api:
             try:
                 return TypeAdapter(APIError).validate_python(response.json())
             except Exception:
-                return APIError(status=str(response.status_code), error=f"Failed to fetch log: {response.text}")
+                return APIError(
+                    status=str(response.status_code),
+                    error=f"Failed to fetch log: {response.text}",
+                )
 
         content = response.content
 
@@ -494,7 +499,9 @@ class Api:
         if isinstance(files, APIError):
             return files
         if not files:
-            return APIError(status="No Data", error=f"No shot files found for {latest_date}")
+            return APIError(
+                status="No Data", error=f"No shot files found for {latest_date}"
+            )
 
         files.sort(key=lambda file: file.name, reverse=True)
         latest_file = files[0]
