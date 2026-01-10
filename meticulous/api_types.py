@@ -67,7 +67,7 @@ class ChangeProfileResponse(BaseModel):
 
 
 class LastProfile(BaseModel):
-    load_time: int
+    load_time: float
     profile: Profile
 
 
@@ -82,10 +82,10 @@ class ReverseScrolling(BaseModel):
 
 class Settings(BaseModel):
     allow_debug_sending: Optional[bool] = None
-    auto_preheat: int
+    auto_preheat: Optional[int] = None
     auto_purge_after_shot: bool
     auto_start_shot: bool
-    partial_retraction: int
+    partial_retraction: Optional[float] = None
     disallow_firmware_flashing: bool
     disable_ui_features: bool
     enable_sounds: bool
@@ -257,7 +257,7 @@ class DeviceInfo(BaseModel):
     firmware: str
     mainVoltage: float
     color: str
-    model_version: str
+    model_version: Optional[str] = None
     serial: str
     batch_number: str
     build_date: str
@@ -274,33 +274,33 @@ class HistoryProfile(Profile):
 
 
 class HistorySensorData(BaseModel):
-    external_1: float
-    external_2: float
-    bar_up: float
-    bar_mid_up: float
-    bar_mid_down: float
-    bar_down: float
-    tube: float
-    valve: float
-    motor_position: float
-    motor_speed: float
-    motor_power: float
-    motor_current: float
-    bandheater_power: float
-    preassure_sensor: float
-    adc_0: float
-    adc_1: float
-    adc_2: float
-    adc_3: float
-    water_status: bool
+    external_1: Optional[float] = None
+    external_2: Optional[float] = None
+    bar_up: Optional[float] = None
+    bar_mid_up: Optional[float] = None
+    bar_mid_down: Optional[float] = None
+    bar_down: Optional[float] = None
+    tube: Optional[float] = None
+    valve: Optional[float] = None
+    motor_position: Optional[float] = None
+    motor_speed: Optional[float] = None
+    motor_power: Optional[float] = None
+    motor_current: Optional[float] = None
+    bandheater_power: Optional[float] = None
+    preassure_sensor: Optional[float] = None
+    adc_0: Optional[float] = None
+    adc_1: Optional[float] = None
+    adc_2: Optional[float] = None
+    adc_3: Optional[float] = None
+    water_status: Optional[bool] = None
 
 
 class HistoryShotData(BaseModel):
-    pressure: float
-    flow: float
-    weight: float
-    temperature: float
-    gravimetric_flow: float
+    pressure: Optional[float] = None
+    flow: Optional[float] = None
+    weight: Optional[float] = None
+    temperature: Optional[float] = None
+    gravimetric_flow: Optional[float] = None
 
 
 class HistoryDataPoint(BaseModel):
@@ -319,7 +319,7 @@ class ShotRating(str, Enum):
 class HistoryBaseEntry(BaseModel):
     id: str
     db_key: Optional[int] = None
-    time: int
+    time: float
     file: Optional[str] = None
     name: str
     profile: HistoryProfile
@@ -332,7 +332,7 @@ class HistoryEntry(HistoryBaseEntry):
 
 
 class HistoryListingEntry(HistoryBaseEntry):
-    data: None = None
+    data: Optional[List[HistoryDataPoint]] = None
 
 
 class HistoryResponse(BaseModel):

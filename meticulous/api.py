@@ -321,7 +321,8 @@ class Api:
     def get_sound_theme(self) -> Union[str, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/sounds/theme/get")
         if response.status_code == 200:
-            return TypeAdapter(str).validate_python(response.json())
+            # Server returns plain text, not JSON
+            return response.text.strip()
         else:
             return TypeAdapter(APIError).validate_python(response.json())
 
