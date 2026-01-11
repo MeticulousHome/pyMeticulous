@@ -1,6 +1,7 @@
 # pyright: reportGeneralTypeIssues=false
 from dataclasses import dataclass
 from datetime import datetime
+import time
 from typing import IO, Any, Callable, Dict, List, Optional, Union, get_args
 
 import json
@@ -27,32 +28,45 @@ from .api_types import (
     HistoryResponse,
     HistoryStats,
     HistoryFile,
+    LogFile,
     LastProfile,
     MachineInfo,
     Notification,
+    ProfileChange,
+    WiFiQRData,
     NotificationData,
     OSStatusResponse,
+    ProfileImportResponse,
     PartialProfile,
     PartialSettings,
     PartialWiFiConfig,
+    MachineState,
     Profile,
     ProfileEvent,
     RateShotResponse,
     Regions,
+    HeaterStatus,
+    OSUpdateEvent,
+    TimezoneResponse,
+    UpdateCheckResponse,
+    UpdateStatus,
+    SensorsEvent,
     Settings,
     ShotRatingResponse,
     StatusData,
-    Temperatures,
     WiFiConfig,
+    WiFiConfigResponse,
     WiFiConnectRequest,
     WiFiNetwork,
+    WifiSystemStatus,
 )
 
 
 @dataclass
 class ApiOptions:
     onStatus: Optional[Callable[[StatusData], None]] = None
-    onTemperatureSensors: Optional[Callable[[Temperatures], None]] = None
+    onSensors: Optional[Callable[[SensorsEvent], None]] = None
+    onTemperatureSensors: Optional[Callable[[SensorsEvent], None]] = None
     onCommunication: Optional[Callable[[Communication], None]] = None
     onActuators: Optional[Callable[[Actuators], None]] = None
     onMachineInfo: Optional[Callable[[MachineInfo], None]] = None
@@ -60,6 +74,9 @@ class ApiOptions:
     onSettingsChange: Optional[Callable[[Dict], None]] = None
     onNotification: Optional[Callable[[NotificationData], None]] = None
     onProfileChange: Optional[Callable[[ProfileEvent], None]] = None
+    onHeaterStatus: Optional[Callable[[HeaterStatus], None]] = None
+    onOSUpdate: Optional[Callable[[OSUpdateEvent], None]] = None
+    throttle: Optional[Union[float, Dict[str, float]]] = None
 
     # Fetch the events name from the Callbacks parameter and save it
     def __post_init__(self) -> None:
@@ -85,17 +102,75 @@ class ApiOptions:
             if handler:
                 event_name = getattr(self, f"_{field.name}_event_name", None)
                 if event_name:
-                    sio.on(event_name, handler)
+                    interval = None
+                    if isinstance(self.throttle, (int, float)):
+                        interval = float(self.throttle)
+                    elif isinstance(self.throttle, dict):
+                        interval = self.throttle.get(event_name)
+
+                    if interval and interval > 0:
+                        gate = EventThrottle(interval=interval)
+                        current_handler = handler
+
+                        def throttled_handler(
+                            *args: tuple[object, ...],
+                            _handler: Callable[..., None] = current_handler,
+                            _gate: EventThrottle = gate,
+                            **kwargs: dict[str, object],
+                        ) -> None:
+                            if _gate.should_process():
+                                return _handler(*args, **kwargs)
+                            return None
+
+                        sio.on(event_name, throttled_handler)
+                    else:
+                        sio.on(event_name, handler)
+
+
+class EventThrottle:
+    """Helper to throttle high-frequency Socket.IO events.
+
+    Usage:
+        throttle = EventThrottle(interval=0.25)  # process at most every 250ms
+
+        def on_status(data: StatusData):
+            if not throttle.should_process():
+                return
+            # handle event
+    """
+
+    def __init__(self, interval: float = 0.1) -> None:
+        self.interval = interval
+        self._last_emit = 0.0
+
+    def should_process(self) -> bool:
+        now = time.time()
+        if now - self._last_emit >= self.interval:
+            self._last_emit = now
+            return True
+        return False
 
 
 class Api:
+    ALLOWED_SOCKETIO_ACTIONS = {
+        ActionType.START.value,
+        ActionType.STOP.value,
+        ActionType.CONTINUE.value,
+        ActionType.TARE.value,
+        ActionType.PREHEAT.value,
+        ActionType.SCALE_MASTER_CALIBRATION.value,
+        ActionType.HOME.value,
+        ActionType.PURGE.value,
+        ActionType.ABORT.value,
+    }
+
     def __init__(
         self,
         base_url: str = "http://localhost:8080/",
-        options: Optional[Dict[str, Callable[[Any], None]]] = None,
+        options: Optional[ApiOptions] = None,
     ) -> None:
         self.base_url = base_url
-        self.options = options or ApiOptions()
+        self.options: ApiOptions = options or ApiOptions()
         self.sio = socketio.Client()
         self.session = requests.Session()
         self.session.headers.update(
@@ -103,34 +178,79 @@ class Api:
         )
 
         # Register socketio event handlers if options provided
-        self.options.register_handlers(self.sio)  # type: ignore[attr-defined]
+        self.options.register_handlers(self.sio)
 
-    def connect_to_socket(self) -> None:
-        self.sio.connect(self.base_url)
+    def connect_to_socket(
+        self,
+        retries: int = 0,
+        backoff: float = 0.5,
+        max_backoff: float = 4.0,
+    ) -> None:
+        attempt = 0
+        delay = backoff
+        while True:
+            try:
+                self.sio.connect(self.base_url)
+                return
+            except Exception:
+                attempt += 1
+                if attempt > retries:
+                    raise
+                time.sleep(delay)
+                delay = min(delay * 2, max_backoff)
 
     def disconnect_socket(self) -> None:
         self.sio.disconnect()
 
+    def _error_from_response(self, response: requests.Response) -> APIError:
+        try:
+            return TypeAdapter(APIError).validate_python(response.json())
+        except Exception:
+            return APIError(
+                error=getattr(response, "reason", "HTTP Error"),
+                status=str(response.status_code),
+            )
+
+    def send_action_socketio(self, action: ActionType) -> None:
+        if action.value not in self.ALLOWED_SOCKETIO_ACTIONS:
+            raise ValueError(f"Unsupported Socket.IO action: {action.value}")
+        self.sio.emit("action", action.value)
+
+    def acknowledge_notification_socketio(
+        self, notification_id: str, response: str
+    ) -> None:
+        payload = json.dumps({"id": notification_id, "response": response})
+        self.sio.emit("notification", payload)
+
+    def send_profile_hover(self, profile_data: Dict[str, Any]) -> None:
+        self.sio.emit("profileHover", profile_data)
+
+    def trigger_calibration(self, enable: bool = True) -> None:
+        self.sio.emit("calibrate", enable)
+
     def execute_action(self, action: ActionType) -> Union[ActionResponse, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/action/{action}")
-        if response.status_code == 200:
+        try:
+            # Always try to parse as ActionResponse first, since the server uses HTTP 400
+            # even for valid action responses (e.g., when action is not allowed)
             return TypeAdapter(ActionResponse).validate_python(response.json())
-        else:
-            return TypeAdapter(APIError).validate_python(response.json())
+        except Exception:
+            # If ActionResponse parsing fails, try APIError
+            return self._error_from_response(response)
 
-    def list_profiles(self) -> Union[List[PartialProfile], APIError]:  # type: ignore[valid-type]
+    def list_profiles(self) -> Union[List[PartialProfile], APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/profile/list")
         if response.status_code == 200:
             return TypeAdapter(List[PartialProfile]).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def fetch_all_profiles(self) -> Union[List[Profile], APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/profile/list?full=true")
         if response.status_code == 200:
             return TypeAdapter(List[Profile]).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def save_profile(self, data: Profile) -> Union[ChangeProfileResponse, APIError]:
         response = self.session.post(
@@ -141,9 +261,19 @@ class Api:
             return TypeAdapter(ChangeProfileResponse).validate_python(response.json())
         else:
             print(response.json())
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
-    def load_profile_from_json(self, data: Profile) -> Union[PartialProfile, APIError]:  # type: ignore[valid-type]
+    def import_profiles(self, file_path: str) -> Union[ProfileImportResponse, APIError]:
+        with open(file_path, "rb") as f:
+            response = self.session.post(
+                f"{self.base_url}/api/v1/profile/import", files={"file": f}
+            )
+        if response.status_code == 200:
+            return TypeAdapter(ProfileImportResponse).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
+
+    def load_profile_from_json(self, data: Profile) -> Union[PartialProfile, APIError]:
         response = self.session.post(
             f"{self.base_url}/api/v1/profile/load",
             json=data.model_dump(exclude_none=True),
@@ -151,21 +281,21 @@ class Api:
         if response.status_code == 200:
             return TypeAdapter(PartialProfile).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
-    def load_profile_by_id(self, id: str) -> Union[PartialProfile, APIError]:  # type: ignore[valid-type]
+    def load_profile_by_id(self, id: str) -> Union[PartialProfile, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/profile/load/{id}")
         if response.status_code == 200:
             return TypeAdapter(PartialProfile).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def get_profile(self, profile_id: str) -> Union[Profile, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/profile/get/{profile_id}")
         if response.status_code == 200:
             return TypeAdapter(Profile).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def delete_profile(self, profile_id: str) -> Union[ChangeProfileResponse, APIError]:
         response = self.session.delete(
@@ -174,14 +304,31 @@ class Api:
         if response.status_code == 200:
             return TypeAdapter(PartialProfile).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def get_last_profile(self) -> Union[LastProfile, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/profile/last")
         if response.status_code == 200:
             return TypeAdapter(LastProfile).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
+
+    def get_profile_changes(self) -> Union[List[ProfileChange], APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/profile/changes")
+        if response.status_code == 200:
+            return TypeAdapter(List[ProfileChange]).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
+
+    def load_legacy_profile(self, data: Dict[str, Any]) -> Union[Profile, APIError]:
+        response = self.session.post(
+            f"{self.base_url}/api/v1/profile/legacy",
+            json=data,
+        )
+        if response.status_code == 200:
+            return TypeAdapter(Profile).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
 
     def get_notifications(
         self, acknowledged: bool
@@ -192,7 +339,7 @@ class Api:
         if response.status_code == 200:
             return TypeAdapter(List[Notification]).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def acknowledge_notification(
         self, data: AcknowledgeNotificationRequest
@@ -204,7 +351,17 @@ class Api:
         if response.status_code == 200:
             return None
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
+
+    def update_setting(self, setting: PartialSettings) -> Union[Settings, APIError]:
+        response = self.session.post(
+            f"{self.base_url}/api/v1/settings",
+            json=setting.model_dump(exclude_none=True),
+        )
+        if response.status_code == 200:
+            return TypeAdapter(Settings).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
 
     def get_settings(
         self, setting_name: Optional[str] = None
@@ -216,17 +373,7 @@ class Api:
         if response.status_code == 200:
             return TypeAdapter(Settings).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
-
-    def update_setting(self, setting: PartialSettings) -> Union[Settings, APIError]:  # type: ignore[valid-type]
-        response = self.session.post(
-            f"{self.base_url}/api/v1/settings",
-            json=setting.model_dump(exclude_none=True),
-        )
-        if response.status_code == 200:
-            return TypeAdapter(Settings).validate_python(response.json())
-        else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def update_firmware(
         self, form_data: Dict[str, IO], esp_type: str = "esp32-s3"
@@ -237,20 +384,31 @@ class Api:
         if response.status_code == 200:
             return None
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
-    def get_wifi_config(self) -> Union[WiFiConfig, APIError]:
+    def get_wifi_config(self) -> Union[WiFiConfigResponse, WiFiConfig, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/wifi/config")
         if response.status_code == 200:
             json_data = response.json()
-            # Extract just the config part for backward compatibility
-            if "config" in json_data:
-                return TypeAdapter(WiFiConfig).validate_python(json_data["config"])
+            if isinstance(json_data, dict) and "config" in json_data:
+                config = TypeAdapter(WiFiConfig).validate_python(json_data["config"])
+                status_data = json_data.get("status")
+                if status_data is not None:
+                    status = TypeAdapter(WifiSystemStatus).validate_python(status_data)
+                    return WiFiConfigResponse(config=config, status=status)
+                return config
             return TypeAdapter(WiFiConfig).validate_python(json_data)
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
-    def set_wifi_config(self, data: PartialWiFiConfig) -> Union[WiFiConfig, APIError]:  # type: ignore[valid-type]
+    def get_wifi_status(self) -> Union[WifiSystemStatus, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/wifi/status")
+        if response.status_code == 200:
+            return TypeAdapter(WifiSystemStatus).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
+
+    def set_wifi_config(self, data: PartialWiFiConfig) -> Union[WiFiConfig, APIError]:
         response = self.session.post(
             f"{self.base_url}/api/v1/wifi/config",
             json=data.model_dump(exclude_none=True),
@@ -258,7 +416,7 @@ class Api:
         if response.status_code == 200:
             return TypeAdapter(WiFiConfig).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def get_wifi_qr_url(self) -> str:
         return f"{self.base_url}/api/v1/wifi/config/qr.png"
@@ -269,14 +427,28 @@ class Api:
         if response.headers.get("Content-Type") == "image/png":
             return response.content
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
+
+    def get_wifi_qr_data(self) -> Union[WiFiQRData, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/wifi/config/qr.json")
+        if response.status_code == 200:
+            return TypeAdapter(WiFiQRData).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
 
     def list_available_wifi(self) -> Union[List[WiFiNetwork], APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/wifi/list")
         if response.status_code == 200:
             return TypeAdapter(List[WiFiNetwork]).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
+
+    def scan_wifi(self) -> Union[Dict[str, Any], APIError]:
+        response = self.session.post(f"{self.base_url}/api/v1/wifi/scan")
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return self._error_from_response(response)
 
     def connect_to_wifi(self, data: WiFiConnectRequest) -> Union[None, APIError]:
         response = self.session.post(
@@ -286,7 +458,7 @@ class Api:
         if response.status_code == 200:
             return None
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def delete_wifi(self, ssid: str) -> Union[None, APIError]:
         response = self.session.post(
@@ -295,28 +467,28 @@ class Api:
         if response.status_code == 200:
             return None
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def play_sound(self, sound: str) -> Union[None, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/sounds/play/{sound}")
         if response.status_code == 200:
             return None
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def list_sounds(self) -> Union[List[str], APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/sounds/list")
         if response.status_code == 200:
             return TypeAdapter(List[str]).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def list_sound_themes(self) -> Union[List[str], APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/sounds/theme/list")
         if response.status_code == 200:
             return TypeAdapter(List[str]).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def get_sound_theme(self) -> Union[str, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/sounds/theme/get")
@@ -324,21 +496,39 @@ class Api:
             # Server returns plain text, not JSON
             return response.text.strip()
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def set_sound_theme(self, theme: str) -> Union[None, APIError]:
         response = self.session.post(f"{self.base_url}/api/v1/sounds/theme/set/{theme}")
         if response.status_code == 200:
             return None
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
+
+    def upload_sound_theme(self, file_path: str) -> Union[None, APIError]:
+        with open(file_path, "rb") as f:
+            response = self.session.post(
+                f"{self.base_url}/api/v1/sounds/theme/upload",
+                files={"file": f},
+            )
+        if response.status_code == 200:
+            return None
+        else:
+            return self._error_from_response(response)
 
     def get_device_info(self) -> Union[DeviceInfo, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/machine")
         if response.status_code == 200:
             return TypeAdapter(DeviceInfo).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
+
+    def get_machine_state(self) -> Union[MachineState, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/machine/state")
+        if response.status_code == 200:
+            return TypeAdapter(MachineState).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
 
     def set_brightness(self, brightness: BrightnessRequest) -> Union[None, APIError]:
         response = self.session.post(
@@ -348,7 +538,58 @@ class Api:
         if response.status_code == 200:
             return None
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
+
+    def check_for_updates(self) -> Union[UpdateCheckResponse, APIError]:
+        response = self.session.post(
+            f"{self.base_url}/api/v1/machine/check_for_updates"
+        )
+        if response.status_code == 200:
+            return TypeAdapter(UpdateCheckResponse).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
+
+    def perform_os_update(self) -> Union[UpdateStatus, APIError]:
+        response = self.session.post(f"{self.base_url}/api/v1/machine/perform_update")
+        if response.status_code == 200:
+            return TypeAdapter(UpdateStatus).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
+
+    def cancel_update(self) -> Union[UpdateStatus, APIError]:
+        response = self.session.post(f"{self.base_url}/api/v1/machine/cancel_update")
+        if response.status_code == 200:
+            return TypeAdapter(UpdateStatus).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
+
+    def reboot_machine(self) -> Union[UpdateStatus, APIError]:
+        response = self.session.post(f"{self.base_url}/api/v1/machine/reboot")
+        if response.status_code == 200:
+            return TypeAdapter(UpdateStatus).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
+
+    def get_debug_log(self) -> Union[str, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/machine/debug_log")
+        if response.status_code == 200:
+            return response.text
+        else:
+            return self._error_from_response(response)
+
+    def list_logs(self) -> Union[List[LogFile], APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/machine/logs")
+        if response.status_code == 200:
+            return TypeAdapter(List[LogFile]).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
+
+    def get_log_file(self, filename: str) -> Union[bytes, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/machine/logs/{filename}")
+        if response.status_code == 200:
+            return response.content
+        else:
+            return self._error_from_response(response)
 
     def get_default_profiles(self) -> Union[List[Profile], DefaultProfiles, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/profile/defaults")
@@ -362,14 +603,14 @@ class Api:
             else:
                 return TypeAdapter(List[Profile]).validate_python(json_data)
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def get_profile_default_images(self) -> Union[List[str], APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/profile/image")
         if response.status_code == 200:
             return TypeAdapter(List[str]).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def get_profile_image_url(self, image: str) -> str:
         if image.startswith("data:"):
@@ -384,14 +625,14 @@ class Api:
         if response.headers.get("Content-Type", "").startswith("image/"):
             return response.content
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def get_history_short_listing(self) -> Union[HistoryListingResponse, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/history")
         if response.status_code == 200:
             return TypeAdapter(HistoryListingResponse).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def search_history(
         self, query: HistoryQueryParams
@@ -403,7 +644,7 @@ class Api:
         if response.status_code == 200:
             return TypeAdapter(HistoryResponse).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def search_historical_profiles(
         self, query: str
@@ -414,7 +655,7 @@ class Api:
         if response.status_code == 200:
             return TypeAdapter(HistoryListingResponse).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def get_current_shot(self) -> Union[HistoryEntry, None, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/history/current")
@@ -424,7 +665,7 @@ class Api:
                 return None
             return TypeAdapter(HistoryEntry).validate_python(json_data)
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def get_last_shot(self) -> Union[HistoryEntry, None, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/history/last")
@@ -434,28 +675,42 @@ class Api:
                 return None
             return TypeAdapter(HistoryEntry).validate_python(json_data)
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def get_history_statistics(self) -> Union[HistoryStats, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/history/stats")
         if response.status_code == 200:
             return TypeAdapter(HistoryStats).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
+
+    def delete_history_entry(self, shot_id: str) -> Union[None, APIError]:
+        response = self.session.delete(f"{self.base_url}/api/v1/history/{shot_id}")
+        if response.status_code == 200:
+            return None
+        else:
+            return self._error_from_response(response)
+
+    def export_history(self) -> Union[bytes, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/history/export")
+        if response.status_code == 200:
+            return response.content
+        else:
+            return self._error_from_response(response)
 
     def get_history_dates(self) -> Union[List[HistoryFile], APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/history/files/")
         if response.status_code == 200:
             return TypeAdapter(List[HistoryFile]).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def get_shot_files(self, date_str: str) -> Union[List[HistoryFile], APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/history/files/{date_str}")
         if response.status_code == 200:
             return TypeAdapter(List[HistoryFile]).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def get_shot_log(
         self, date_str: str, filename: str
@@ -514,7 +769,7 @@ class Api:
         if response.status_code == 200:
             return TypeAdapter(OSStatusResponse).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def get_timezone_region(
         self, region_type: str, conditional: str
@@ -526,7 +781,31 @@ class Api:
         if response.status_code == 200:
             return TypeAdapter(Regions).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
+
+    def get_timezones(self) -> Union[Regions, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/timezones")
+        if response.status_code == 200:
+            return TypeAdapter(Regions).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
+
+    def get_timezone(self) -> Union[TimezoneResponse, APIError]:
+        response = self.session.get(f"{self.base_url}/api/v1/machine/timezone")
+        if response.status_code == 200:
+            return TypeAdapter(TimezoneResponse).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
+
+    def set_timezone(self, timezone: str) -> Union[TimezoneResponse, APIError]:
+        response = self.session.post(
+            f"{self.base_url}/api/v1/machine/timezone",
+            json={"timezone": timezone},
+        )
+        if response.status_code == 200:
+            return TypeAdapter(TimezoneResponse).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
 
     def set_time(self, date_time: datetime) -> Union[Regions, APIError]:
         response = self.session.post(
@@ -536,7 +815,7 @@ class Api:
         if response.status_code == 200:
             return TypeAdapter(Regions).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def rate_shot(self, shot_id: int, rating: str) -> Union[RateShotResponse, APIError]:
         response = self.session.post(
@@ -546,11 +825,11 @@ class Api:
         if response.status_code == 200:
             return TypeAdapter(RateShotResponse).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)
 
     def get_shot_rating(self, shot_id: int) -> Union[ShotRatingResponse, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/history/rating/{shot_id}")
         if response.status_code == 200:
             return TypeAdapter(ShotRatingResponse).validate_python(response.json())
         else:
-            return TypeAdapter(APIError).validate_python(response.json())
+            return self._error_from_response(response)

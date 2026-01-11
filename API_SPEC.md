@@ -48,12 +48,12 @@ for profile in profiles:
 ### Constructor
 
 ```python
-Api(base_url: str = "http://localhost:8080/", options: Optional[Dict[str, Callable]] = None)
+Api(base_url: str = "http://localhost:8080/", options: Optional[ApiOptions] = None)
 ```
 
 **Parameters:**
 - `base_url` (str): The base URL of the Meticulous API server
-- `options` (ApiOptions, optional): Event handler configuration for Socket.IO events
+- `options` (ApiOptions, optional): Event handler configuration for Socket.IO events. Supports throttling via `throttle`.
 
 **Example:**
 ```python
@@ -68,12 +68,12 @@ api = Api(base_url="http://192.168.1.100:8080/", options=options)
 
 ### Socket.IO Connection
 
-#### `connect_to_socket() -> None`
+#### `connect_to_socket(retries: int = 0, backoff: float = 0.5, max_backoff: float = 4.0) -> None`
 
 Establishes a Socket.IO connection for real-time events.
 
 ```python
-api.connect_to_socket()
+api.connect_to_socket(retries=3, backoff=0.5, max_backoff=4.0)
 ```
 
 #### `disconnect_socket() -> None`
@@ -82,6 +82,19 @@ Closes the Socket.IO connection.
 
 ```python
 api.disconnect_socket()
+```
+
+#### Socket.IO Helpers
+
+Convenience methods to emit common events:
+
+```python
+from meticulous.api_types import ActionType
+
+api.send_action_socketio(ActionType.START)
+api.acknowledge_notification_socketio("notif-id", "acknowledged")
+api.send_profile_hover({"id": "profile-id", "name": "My Profile"})
+api.trigger_calibration(True)
 ```
 
 ## Profile Management
@@ -315,11 +328,14 @@ if not isinstance(result, APIError):
 
 ## WiFi Configuration
 
-### `get_wifi_config() -> Union[WiFiConfig, APIError]`
+### `get_wifi_config() -> Union[WiFiConfigResponse, WiFiConfig, APIError]`
 
 Gets WiFi configuration.
 
-**Returns:** WiFiConfig or APIError
+**Returns:**
+- `WiFiConfigResponse` when firmware returns `{"config": ..., "status": ...}`
+- `WiFiConfig` for bare config responses
+- `APIError` on failure
 
 ### `set_wifi_config(data: PartialWiFiConfig) -> Union[WiFiConfig, APIError]`
 
@@ -341,6 +357,18 @@ Gets the URL for the WiFi configuration QR code.
 Downloads the WiFi configuration QR code image.
 
 **Returns:** PNG image bytes or APIError
+
+### `get_wifi_qr_data() -> Union[WiFiQRData, APIError]`
+
+Gets WiFi setup QR data as JSON.
+
+**Returns:** `WiFiQRData` or `APIError`
+
+### `get_wifi_status() -> Union[WifiSystemStatus, APIError]`
+
+Gets current WiFi connection status.
+
+**Returns:** `WifiSystemStatus` or `APIError`
 
 ### `list_available_wifi() -> Union[List[WiFiNetwork], APIError]`
 
@@ -411,7 +439,7 @@ Lists available sound themes.
 
 Gets the current sound theme.
 
-**Returns:** Theme name or APIError
+**Returns:** Theme name (plain text) or APIError
 
 ### `set_sound_theme(theme: str) -> Union[None, APIError]`
 
@@ -709,6 +737,34 @@ if not isinstance(status, APIError):
     print(f"Status: {status.status}")
 ```
 
+### `check_for_updates() -> Union[UpdateCheckResponse, APIError]`
+
+Checks for available OS updates.
+
+### `perform_os_update() -> Union[UpdateStatus, APIError]`
+
+Triggers OS update.
+
+### `cancel_update() -> Union[UpdateStatus, APIError]`
+
+Cancels an in-progress OS update.
+
+### `reboot_machine() -> Union[UpdateStatus, APIError]`
+
+Reboots the machine.
+
+### `get_debug_log() -> Union[str, APIError]`
+
+Downloads the current debug log.
+
+### `list_logs() -> Union[List[LogFile], APIError]`
+
+Lists available machine logs.
+
+### `get_log_file(filename: str) -> Union[bytes, APIError]`
+
+Downloads a specific machine log file.
+
 ## Real-time Events (Socket.IO)
 
 The API supports real-time event streaming via Socket.IO. Configure event handlers when creating the API instance:
@@ -751,6 +807,12 @@ api.disconnect_socket()
 - `onSettingsChange`: Receives settings changes
 - `onNotification`: Receives NotificationData
 - `onProfileChange`: Receives ProfileEvent updates
+
+### Event Throttling
+
+High-frequency events can be throttled via `ApiOptions.throttle`:
+- Global throttle: `ApiOptions(throttle=0.25)` processes at most every 250ms
+- Per-event throttle: `ApiOptions(throttle={"status": 0.25, "sensors": 0.5})`
 
 ## Type Reference
 
@@ -852,6 +914,8 @@ else:
     # result is a Profile object
     print(f"Profile: {result.name}")
 ```
+
+If the server returns a non-JSON error (e.g., HTML or plain text), a best-effort `APIError` is constructed using the HTTP status and reason.
 
 ## Complete Example
 

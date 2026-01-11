@@ -1,7 +1,7 @@
 # pyright: reportCallIssue=false, reportUnusedVariable=false
 from datetime import datetime
 from enum import Enum
-from typing import Callable, Dict, List, Optional, Type, Union
+from typing import Callable, Dict, List, Optional, Type, Union, TypeAlias
 from .profile import Profile
 from pydantic import AnyUrl, BaseModel, create_model, ConfigDict
 
@@ -21,8 +21,10 @@ class ActionType(str, Enum):
     RESET = "reset"
     TARE = "tare"
     PREHEAT = "preheat"
-    CALIBRATION = "calibration"
     SCALE_MASTER_CALIBRATION = "scale_master_calibration"
+    HOME = "home"
+    PURGE = "purge"
+    ABORT = "abort"
 
 
 class APIError(BaseModel):
@@ -52,7 +54,7 @@ class Notification(BaseModel):
 
 
 # Generate PartialProfile dynamically from Settings
-PartialProfile = create_model(  # type: ignore[call-overload]
+PartialProfile: TypeAlias = create_model(  # type: ignore[call-overload]
     "PartialProfile",
     **{  # type: ignore[arg-type]
         name: (Optional[field.annotation], None)
@@ -101,7 +103,7 @@ class Settings(BaseModel):
 
 
 # Generate PartialSettings dynamically from Settings
-PartialSettings = create_model(  # type: ignore[call-overload]
+PartialSettings: TypeAlias = create_model(  # type: ignore[call-overload]
     "PartialSettings",
     **{  # type: ignore[arg-type]
         name: (Optional[field.annotation], None)
@@ -130,11 +132,16 @@ class WifiSystemStatus(BaseModel):
     dns: List[str]
     mac: str
     hostname: str
-    domains: List[str]
+    domains: Optional[List[str]] = None
+
+
+class WiFiConfigResponse(BaseModel):
+    config: WiFiConfig
+    status: WifiSystemStatus
 
 
 # Generate PartialWiFiConfig dynamically from WiFiConfig
-PartialWiFiConfig = create_model(  # type: ignore[call-overload]
+PartialWiFiConfig: TypeAlias = create_model(  # type: ignore[call-overload]
     "PartialWiFiConfig",
     **{  # type: ignore[arg-type]
         name: (Optional[field.annotation], None)
@@ -157,6 +164,62 @@ class WiFiNetwork(BaseModel):
     security: Optional[str] = None
 
 
+class MachineState(BaseModel):
+    state: str
+    status: str
+    extracting: bool
+
+
+class TimezoneResponse(BaseModel):
+    timezone: str
+
+
+class UpdateCheckResponse(BaseModel):
+    available: Optional[bool] = None
+    version: Optional[str] = None
+    channel: Optional[str] = None
+
+
+class UpdateStatus(BaseModel):
+    status: Optional[str] = None
+    info: Optional[str] = None
+
+
+class ProfileImportResponse(BaseModel):
+    imported: int
+    errors: Optional[List[str]] = None
+
+
+class ProfileChange(BaseModel):
+    type: str
+    profile_id: str
+    change_id: str
+    timestamp: Optional[float] = None
+
+
+class LogFile(BaseModel):
+    name: str
+    url: Optional[str] = None
+
+
+class WiFiQRData(BaseModel):
+    ssid: str
+    password: str
+    encryption: str
+
+
+@on_event("heater_status")
+class HeaterStatus(BaseModel):
+    remaining: int
+
+
+@on_event("OSUpdate")
+class OSUpdateEvent(BaseModel):
+    progress: Optional[int] = None
+    status: Optional[str] = None
+    info: Optional[str] = None
+
+
 class SensorData(BaseModel):
     p: float
     f: float
@@ -167,7 +230,6 @@ class SensorData(BaseModel):
 
 class SetpointData(BaseModel):
     active: Optional[str] = None
-    temperature: Optional[float] = None
     flow: Optional[float] = None
     pressure: Optional[float] = None
     power: Optional[float] = None
@@ -177,19 +239,19 @@ class SetpointData(BaseModel):
 @on_event("status")
 class StatusData(BaseModel):
     name: str
-    sensors: Union[Dict[str, Union[int, float]], SensorData]
+    sensors: SensorData
     time: int
-    profile_time: Optional[int] = None
+    profile_time: int
     profile: str
     loaded_profile: Optional[str] = None
     id: Optional[str] = None
-    state: Optional[str] = None
-    extracting: Optional[bool] = None
-    setpoints: Optional[SetpointData] = None
+    state: str
+    extracting: bool
+    setpoints: SetpointData
 
 
 @on_event("sensors")
-class Temperatures(BaseModel):
+class SensorsEvent(BaseModel):
     t_ext_1: float
     t_ext_2: float
     t_bar_up: float
@@ -197,7 +259,22 @@ class Temperatures(BaseModel):
     t_bar_md: float
     t_bar_down: float
     t_tube: float
-    t_valv: float
+    t_motor_temp: float
+    lam_temp: float
+    p: float
+    a_0: float
+    a_1: float
+    a_2: float
+    a_3: float
+    m_pos: float
+    m_spd: float
+    m_pwr: float
+    m_cur: float
+    bh_pwr: float
+    bh_cur: float
+    w_stat: bool
+    motor_temp: float
+    weight_pred: float
 
 
 @on_event("communication")
@@ -254,19 +331,19 @@ class HistoryFile(BaseModel):
 class DeviceInfo(BaseModel):
     name: str
     hostname: str
-    firmware: str
-    mainVoltage: float
-    color: str
-    model_version: Optional[str] = None
+    firmware: Optional[str] = None
+    mainVoltage: Optional[float] = None
     serial: str
+    color: str
     batch_number: str
     build_date: str
     software_version: Optional[str] = None
-    image_build_channel: str
-    image_version: str
+    image_build_channel: Optional[str] = None
+    image_version: Optional[str] = None
+    repository_info: Optional[Dict[str, Dict[str, Optional[str]]]] = None
     manufacturing: bool
     upgrade_first_boot: bool
-    version_history: List[str]
+    version_history: List[str] = []
 
 
 class HistoryProfile(Profile):
