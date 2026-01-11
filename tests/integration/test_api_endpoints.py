@@ -74,10 +74,6 @@ class TestApiEndpoints(unittest.TestCase):
             return
         result = self.api.get_wifi_config()
         self.assertFalse(isinstance(result, APIError))
-        # Test WiFi status endpoint
-        status = self.api.get_wifi_status()
-        if isinstance(status, APIError):
-            self.skipTest("WiFi status endpoint not available")
         # QR endpoint returns bytes; validate quickly
         qr = self.api.get_wifi_qr()
         if not isinstance(qr, APIError):
@@ -118,13 +114,6 @@ class TestApiEndpoints(unittest.TestCase):
         status = self.api.get_os_status()
         if not isinstance(status, APIError):
             self._assert_ok(status, OSStatusResponse)
-
-        # Machine state
-        state = self.api.get_machine_state()
-        if not isinstance(state, APIError):
-            from meticulous.api_types import MachineState
-
-            self._assert_ok(state, MachineState)
 
     def test_timezone_endpoints(self) -> None:
         """Test timezone read operations (safe)."""

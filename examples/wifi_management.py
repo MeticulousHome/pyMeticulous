@@ -48,26 +48,6 @@ def main() -> None:
         print("Unexpected WiFi config payload")
         return
 
-    # Get detailed WiFi status
-    print("\n" + "=" * 60)
-    print("WIFI STATUS (Detailed)")
-    print("=" * 60)
-
-    wifi_status = api.get_wifi_status()
-    if isinstance(wifi_status, APIError):
-        print(f"Error fetching WiFi status: {wifi_status.error}")
-    else:
-        print(f"\nConnected: {wifi_status.connected}")
-        print(f"Network: {wifi_status.connection_name}")
-        print(f"Hostname: {wifi_status.hostname}")
-        print(f"Gateway: {wifi_status.gateway}")
-        print(f"IP Addresses: {', '.join(wifi_status.ips)}")
-        print(f"Routes: {', '.join(wifi_status.routes)}")
-        print(f"DNS Servers: {', '.join(wifi_status.dns)}")
-        print(f"MAC Address: {wifi_status.mac}")
-        if wifi_status.domains:
-            print(f"Domains: {', '.join(wifi_status.domains)}")
-
     print("\n" + "=" * 60)
     print("AVAILABLE NETWORKS")
     print("=" * 60)

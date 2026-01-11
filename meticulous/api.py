@@ -40,7 +40,6 @@ from .api_types import (
     PartialProfile,
     PartialSettings,
     PartialWiFiConfig,
-    MachineState,
     Profile,
     ProfileEvent,
     RateShotResponse,
@@ -401,13 +400,6 @@ class Api:
         else:
             return self._error_from_response(response)
 
-    def get_wifi_status(self) -> Union[WifiSystemStatus, APIError]:
-        response = self.session.get(f"{self.base_url}/api/v1/wifi/status")
-        if response.status_code == 200:
-            return TypeAdapter(WifiSystemStatus).validate_python(response.json())
-        else:
-            return self._error_from_response(response)
-
     def set_wifi_config(self, data: PartialWiFiConfig) -> Union[WiFiConfig, APIError]:
         response = self.session.post(
             f"{self.base_url}/api/v1/wifi/config",
@@ -440,13 +432,6 @@ class Api:
         response = self.session.get(f"{self.base_url}/api/v1/wifi/list")
         if response.status_code == 200:
             return TypeAdapter(List[WiFiNetwork]).validate_python(response.json())
-        else:
-            return self._error_from_response(response)
-
-    def scan_wifi(self) -> Union[Dict[str, Any], APIError]:
-        response = self.session.post(f"{self.base_url}/api/v1/wifi/scan")
-        if response.status_code == 200:
-            return response.json()
         else:
             return self._error_from_response(response)
 
@@ -520,13 +505,6 @@ class Api:
         response = self.session.get(f"{self.base_url}/api/v1/machine")
         if response.status_code == 200:
             return TypeAdapter(DeviceInfo).validate_python(response.json())
-        else:
-            return self._error_from_response(response)
-
-    def get_machine_state(self) -> Union[MachineState, APIError]:
-        response = self.session.get(f"{self.base_url}/api/v1/machine/state")
-        if response.status_code == 200:
-            return TypeAdapter(MachineState).validate_python(response.json())
         else:
             return self._error_from_response(response)
 
