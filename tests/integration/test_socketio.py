@@ -7,12 +7,20 @@ Set METICULOUS_HOST environment variable to specify the machine address.
 import pytest
 import unittest
 
-from tests.integration.utils import make_api_with_events, wait_for_events
+from tests.integration.utils import (
+    make_api_with_events,
+    wait_for_events,
+    get_base_url,
+    server_reachable,
+)
 
 
 @pytest.mark.integration
 class TestSocketIO(unittest.TestCase):
     def setUp(self) -> None:
+        base_url = get_base_url()
+        if not server_reachable(base_url):
+            self.skipTest(f"Server not reachable at {base_url}")
         self.api, self.collector = make_api_with_events()
 
     def tearDown(self) -> None:
