@@ -1,7 +1,15 @@
 """Integration tests for REST API endpoints.
 
 These tests require a real meticulous machine to be available.
-Set METICULOUS_HOST environment variable to specify the machine address.
+
+Setup (choose one method):
+1. Local config file (recommended):
+   cp tests/integration/local_config.example.py tests/integration/local_config.py
+   # Edit local_config.py and set METICULOUS_HOST = "192.168.1.100:8080"
+
+2. Environment variable:
+   export METICULOUS_HOST=192.168.1.100:8080  # Linux/Mac
+   $env:METICULOUS_HOST="192.168.1.100:8080"  # PowerShell
 
 Run integration tests:
     pytest -m integration

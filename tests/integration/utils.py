@@ -14,19 +14,42 @@ from meticulous.api_types import (
 
 
 def get_base_url() -> str:
-    """Get base URL from environment variable METICULOUS_HOST or use default.
+    """Get base URL from local config file, environment variable, or default.
 
-    Set METICULOUS_HOST environment variable to test against a specific machine:
-    export METICULOUS_HOST=192.168.1.100:8080  # Linux/Mac
-    $env:METICULOUS_HOST="192.168.1.100:8080"  # PowerShell
+    Priority order:
+    1. local_config.py file (gitignored, for local development)
+    2. METICULOUS_HOST environment variable
+    3. Default localhost:8080
+
+    To set up local config:
+        cp tests/integration/local_config.example.py tests/integration/local_config.py
+        # Edit local_config.py and set your machine's IP address
+
+    Or use environment variable:
+        export METICULOUS_HOST=192.168.1.100:8080  # Linux/Mac
+        $env:METICULOUS_HOST="192.168.1.100:8080"  # PowerShell
     """
+    # Try local config file first (gitignored)
+    try:
+        from . import local_config
+
+        host = getattr(local_config, "METICULOUS_HOST", None)
+        if host:
+            if not host.startswith(("http://", "https://")):
+                host = f"http://{host}"
+            return host.rstrip("/")
+    except ImportError:
+        pass
+
+    # Fall back to environment variable
     env_host = os.environ.get("METICULOUS_HOST")
     if env_host:
         # Add http:// if not present
         if not env_host.startswith(("http://", "https://")):
             env_host = f"http://{env_host}"
         return env_host.rstrip("/")
-    # Default fallback - set METICULOUS_HOST environment variable for your machine
+
+    # Default fallback
     return "http://localhost:8080"
 
 
