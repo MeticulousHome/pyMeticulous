@@ -7,32 +7,41 @@ import requests
 from meticulous.api import Api, ApiOptions
 from meticulous.api_types import (
     StatusData,
-    Temperatures,
+    SensorsEvent,
     NotificationData,
     ProfileEvent,
 )
 
 
 def get_base_url() -> str:
-    env_url = os.environ.get("METICULOUS_BASE_URL")
-    if env_url:
-        return env_url.rstrip("/")
-    # Default to the provided machine IP
-    return "http://192.168.0.115:8080"
+    """Get base URL from environment variable METICULOUS_HOST or use default.
+
+    Set METICULOUS_HOST environment variable to test against a specific machine:
+    export METICULOUS_HOST=192.168.1.100:8080  # Linux/Mac
+    $env:METICULOUS_HOST="192.168.1.100:8080"  # PowerShell
+    """
+    env_host = os.environ.get("METICULOUS_HOST")
+    if env_host:
+        # Add http:// if not present
+        if not env_host.startswith(("http://", "https://")):
+            env_host = f"http://{env_host}"
+        return env_host.rstrip("/")
+    # Default fallback - set METICULOUS_HOST environment variable for your machine
+    return "http://localhost:8080"
 
 
 class EventCollector:
     def __init__(self) -> None:
         self.status_events: List[StatusData] = []
-        self.temperature_events: List[Temperatures] = []
+        self.sensor_events: List[SensorsEvent] = []
         self.notification_events: List[NotificationData] = []
         self.profile_events: List[ProfileEvent] = []
 
     def on_status(self, data: StatusData) -> None:
         self.status_events.append(data)
 
-    def on_temperatures(self, data: Temperatures) -> None:
-        self.temperature_events.append(data)
+    def on_sensors(self, data: SensorsEvent) -> None:
+        self.sensor_events.append(data)
 
     def on_notification(self, data: NotificationData) -> None:
         self.notification_events.append(data)
@@ -45,7 +54,7 @@ def make_api_with_events() -> Tuple[Api, EventCollector]:
     collector = EventCollector()
     options = ApiOptions(
         onStatus=collector.on_status,
-        onTemperatureSensors=collector.on_temperatures,
+        onSensors=collector.on_sensors,
         onNotification=collector.on_notification,
         onProfileChange=collector.on_profile,
     )
@@ -69,7 +78,7 @@ def wait_for_events(
         time.sleep(0.1)
     return {
         "status": len(collector.status_events),
-        "temperatures": len(collector.temperature_events),
+        "sensors": len(collector.sensor_events),
         "notifications": len(collector.notification_events),
         "profiles": len(collector.profile_events),
     }
@@ -95,7 +104,7 @@ def choose_random_different_profile_id(
     return random.choice(candidates).id
 
 
-def get_current_weight_from_status(status: Any) -> Optional[float]:
+def get_current_weight_from_status(status: object) -> Optional[float]:
     # status may be a dict or StatusData object depending on how socketio delivers it
     sensors = (
         status.get("sensors")

@@ -8,7 +8,7 @@ A comprehensive Python wrapper for the Meticulous espresso machine API.
 
 pyMeticulous provides a complete Python interface to the [Meticulous TypeScript API](https://github.com/MeticulousHome/meticulous-typescript-api), enabling programmatic control and monitoring of Meticulous espresso machines.
 
-**Version 0.2.0** brings comprehensive API parity with the TypeScript implementation, full type safety with Pydantic v2, and extensive test coverage.
+**Version 0.3.0** adds complete backend API alignment with comprehensive testing, event throttling, robust error handling, and extensive machine management endpoints.
 
 ## Features
 
@@ -130,6 +130,45 @@ api.connect_to_socket()
 api.disconnect_socket()
 ```
 
+### Event Throttling
+
+To avoid overloading your handlers with high-frequency events, enable simple throttling via `ApiOptions.throttle`:
+
+```python
+from meticulous.api import Api, ApiOptions
+
+def on_status(data):
+    # Will be called at most once every 250ms
+    print(f"State: {data.state}, Time: {data.profile_time}ms")
+
+# Throttle all events globally to 250ms
+api = Api(
+    base_url="http://localhost:8080/",
+    options=ApiOptions(onStatus=on_status, throttle=0.25)
+)
+
+# Or throttle individual events by name
+api = Api(
+    options=ApiOptions(
+        onStatus=on_status,
+        throttle={"status": 0.25, "temperature": 0.5}
+    )
+)
+```
+
+### Socket.IO Helpers
+
+Convenience helpers are available for emitting common actions over Socket.IO:
+
+```python
+from meticulous.api_types import ActionType
+
+api.send_action_socketio(ActionType.START)
+api.acknowledge_notification_socketio("notif-id", "acknowledged")
+api.send_profile_hover({"id": "profile-id", "name": "My Profile"})
+api.trigger_calibration(True)
+```
+
 ## Error Handling
 
 All API methods return either the expected type or an `APIError` object:
@@ -148,6 +187,15 @@ else:
     print(f"Profile loaded: {result.name}")
 ```
 
+### Union Returns
+
+Some methods can return more than one success shape depending on firmware version or endpoint:
+- **WiFi config**: `get_wifi_config()` → `WiFiConfigResponse` (wrapped with status) or `WiFiConfig` (bare config)
+- **Default profiles**: `get_default_profiles()` → `DefaultProfiles` (grouped) or `List[Profile]`
+- **Current/last shot**: `get_current_shot()` / `get_last_shot()` → `HistoryEntry` or `None`
+
+Always guard with `isinstance(...)` checks in your code and tests.
+
 ## Type Safety
 
 pyMeticulous uses Pydantic v2 for complete data validation and type safety. All API methods accept and return fully typed models. See the [Type Reference](./API_SPEC.md#type-reference) section in the API specification for complete model documentation.
@@ -156,16 +204,39 @@ pyMeticulous uses Pydantic v2 for complete data validation and type safety. All 
 
 ### Running Tests
 
+pyMeticulous includes both **unit tests** (fast, using mocks) and **integration tests** (require real hardware).
+
 ```bash
 # Install test dependencies
 pip install -e ".[test]"
 
-# Run tests
-pytest tests/
+# Run only unit tests (fast, no hardware needed)
+pytest -m "not integration"
 
-# Run with coverage
-pytest --cov=meticulous tests/
+# Run only integration tests (requires real machine)
+export METICULOUS_HOST=192.168.1.100:8080  # Set your machine address
+pytest -m integration
+
+# Run all tests
+pytest
+
+# Run with coverage (unit tests only)
+pytest --cov=meticulous -m "not integration"
 ```
+
+### Test Organization
+
+- **Unit Tests** (`tests/test_*.py`) - Fast tests using mocks, run on every change
+  - `test_models.py` - Type model validation
+  - `test_rest_api.py` - REST endpoint tests
+  - `test_socketio.py` - Socket.IO functionality
+  
+- **Integration Tests** (`tests/integration/`) - Validate against real hardware
+  - `test_api_endpoints.py` - REST API validation
+  - `test_safe_posts.py` - Safe POST operations
+  - `test_socketio.py` - Real-time event streaming
+  
+See [tests/integration/README.md](tests/integration/README.md) for integration test details.
 
 ### Project Structure
 
@@ -177,8 +248,10 @@ pyMeticulous/
 │   ├── api_types.py        # Type definitions
 │   └── profile.py          # Profile model
 ├── tests/
-│   ├── test_api.py         # API tests
-│   ├── test_profiles.py    # Profile tests
+│   ├── test_models.py      # Model/type tests
+│   ├── test_rest_api.py    # REST API tests
+│   ├── test_socketio.py    # Socket.IO tests
+│   ├── integration/        # Integration tests (require real machine)
 │   └── mock_responses.py   # Test fixtures
 ├── examples/               # Example scripts
 ├── API_SPEC.md            # Complete API documentation

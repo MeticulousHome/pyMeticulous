@@ -1,8 +1,16 @@
+"""Integration tests for Socket.IO real-time events.
+
+These tests require a real meticulous machine to be available.
+Set METICULOUS_HOST environment variable to specify the machine address.
+"""
+
+import pytest
 import unittest
 
-from tests.smoke.utils import make_api_with_events, wait_for_events
+from tests.integration.utils import make_api_with_events, wait_for_events
 
 
+@pytest.mark.integration
 class TestSocketIO(unittest.TestCase):
     def setUp(self) -> None:
         self.api, self.collector = make_api_with_events()
@@ -18,9 +26,9 @@ class TestSocketIO(unittest.TestCase):
         self.api.connect_to_socket()
         counts = wait_for_events(self.collector, timeout_sec=5.0)
 
-        # Expect at least some status or temperature events in normal operation
+        # Expect at least some status or sensor events in normal operation
         self.assertTrue(
-            counts["status"] > 0 or counts["temperatures"] > 0,
+            counts["status"] > 0 or counts["sensors"] > 0,
             msg=f"No events received: {counts}",
         )
 

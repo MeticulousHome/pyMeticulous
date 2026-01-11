@@ -8,7 +8,10 @@ This example demonstrates how to:
 - Manage saved networks
 """
 
+from typing import cast
+
 from meticulous.api import Api, APIError
+from meticulous.api_types import WiFiConfig, WiFiConfigResponse
 
 
 def main() -> None:
@@ -19,15 +22,51 @@ def main() -> None:
     print("WIFI CONFIGURATION")
     print("=" * 60)
 
-    # Get WiFi configuration
+    # Get WiFi configuration (may include status if available)
     wifi_config = api.get_wifi_config()
     if isinstance(wifi_config, APIError):
         print(f"Error fetching WiFi config: {wifi_config.error}")
         return
 
     print("\nConfiguration:")
-    print(f"  Mode: {wifi_config.mode}")
-    print(f"  AP Name: {wifi_config.apName}")
+    if isinstance(wifi_config, WiFiConfigResponse):
+        response = cast(WiFiConfigResponse, wifi_config)
+        print(f"  Mode: {response.config.mode}")
+        print(f"  AP Name: {response.config.apName}")
+        print("\nConnection Status:")
+        print(f"  Connected: {response.status.connected}")
+        print(f"  Network: {response.status.connection_name}")
+        print(f"  Gateway: {response.status.gateway}")
+        print(f"  IPs: {', '.join(response.status.ips)}")
+        print(f"  DNS: {', '.join(response.status.dns)}")
+        print(f"  MAC: {response.status.mac}")
+    elif isinstance(wifi_config, WiFiConfig):
+        config = cast(WiFiConfig, wifi_config)
+        print(f"  Mode: {config.mode}")
+        print(f"  AP Name: {config.apName}")
+    else:
+        print("Unexpected WiFi config payload")
+        return
+
+    # Get detailed WiFi status
+    print("\n" + "=" * 60)
+    print("WIFI STATUS (Detailed)")
+    print("=" * 60)
+
+    wifi_status = api.get_wifi_status()
+    if isinstance(wifi_status, APIError):
+        print(f"Error fetching WiFi status: {wifi_status.error}")
+    else:
+        print(f"\nConnected: {wifi_status.connected}")
+        print(f"Network: {wifi_status.connection_name}")
+        print(f"Hostname: {wifi_status.hostname}")
+        print(f"Gateway: {wifi_status.gateway}")
+        print(f"IP Addresses: {', '.join(wifi_status.ips)}")
+        print(f"Routes: {', '.join(wifi_status.routes)}")
+        print(f"DNS Servers: {', '.join(wifi_status.dns)}")
+        print(f"MAC Address: {wifi_status.mac}")
+        if wifi_status.domains:
+            print(f"Domains: {', '.join(wifi_status.domains)}")
 
     print("\n" + "=" * 60)
     print("AVAILABLE NETWORKS")
