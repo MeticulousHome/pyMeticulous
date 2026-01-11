@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 from requests.models import Response
 
 from meticulous import Api, APIError
-from typing import cast, List, Dict, Any
+from typing import cast, List
 
 from meticulous.api_types import (
     BrightnessRequest,
@@ -27,13 +27,11 @@ from meticulous.api_types import (
     RateShotResponse,
     DefaultProfiles,
     Regions,
-    MachineState,
     UpdateCheckResponse,
     UpdateStatus,
     TimezoneResponse,
     ProfileImportResponse,
     ProfileChange,
-    WifiSystemStatus,
     WiFiQRData,
     WiFiConfig,
     WiFiConfigResponse,
@@ -498,25 +496,6 @@ class TestMachineManagement(unittest.TestCase):
         self.api = Api(base_url="http://localhost:8080/")
 
     @patch("requests.Session.get")
-    def test_get_machine_state(self, mock_get: Mock) -> None:
-        """Test getting machine state."""
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "state": "idle",
-            "status": "ready",
-            "extracting": False,
-        }
-        mock_get.return_value = mock_response
-
-        result = self.api.get_machine_state()
-        self.assertIsInstance(result, MachineState)
-        state = cast(MachineState, result)
-        self.assertEqual(state.state, "idle")
-        self.assertEqual(state.status, "ready")
-        self.assertFalse(state.extracting)
-
-    @patch("requests.Session.get")
     def test_get_os_status(self, mock_get: Mock) -> None:
         mock_response = Mock(spec=Response)
         mock_response.status_code = 200
@@ -673,48 +652,6 @@ class TestWiFiManagement(unittest.TestCase):
         self.api = Api(base_url="http://localhost:8080/")
 
     @patch("requests.Session.get")
-    def test_get_wifi_status(self, mock_get: Mock) -> None:
-        """Test getting WiFi system status."""
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "connected": True,
-            "connection_name": "WiFi",
-            "gateway": "192.168.1.1",
-            "routes": ["default"],
-            "ips": ["192.168.1.100"],
-            "dns": ["8.8.8.8"],
-            "mac": "aa:bb:cc:dd:ee:ff",
-            "hostname": "meticulous",
-            "domains": ["local"],
-        }
-        mock_get.return_value = mock_response
-
-        result = self.api.get_wifi_status()
-
-        self.assertIsInstance(result, WifiSystemStatus)
-        status = cast(WifiSystemStatus, result)
-        self.assertTrue(status.connected)
-        self.assertEqual(status.gateway, "192.168.1.1")
-
-    @patch("requests.Session.post")
-    def test_scan_wifi(self, mock_post: Mock) -> None:
-        """Test scanning for WiFi networks."""
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "scanning": True,
-            "networks": [],
-        }
-        mock_post.return_value = mock_response
-
-        result = self.api.scan_wifi()
-
-        self.assertFalse(isinstance(result, APIError))
-        scan = cast(Dict[str, Any], result)
-        self.assertTrue(scan.get("scanning"))
-
-    @patch("requests.Session.get")
     def test_get_wifi_qr_data(self, mock_get: Mock) -> None:
         """Test getting WiFi QR code data as JSON."""
         mock_response = Mock(spec=Response)
@@ -800,28 +737,14 @@ class TestAPIErrorHandling(unittest.TestCase):
         self.api = Api(base_url="http://localhost:8080/")
 
     @patch("requests.Session.get")
-    def test_machine_state_error(self, mock_get: Mock) -> None:
-        """Test error handling for machine state endpoint."""
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 500
-        mock_response.json.return_value = {"error": "Internal server error"}
-        mock_get.return_value = mock_response
-
-        result = self.api.get_machine_state()
-
-        self.assertIsInstance(result, APIError)
-        err = cast(APIError, result)
-        self.assertEqual(err.error, "Internal server error")
-
-    @patch("requests.Session.get")
     def test_wifi_status_not_available(self, mock_get: Mock) -> None:
-        """Test WiFi status when WiFi is not available."""
+        """Test WiFi config when WiFi is not available."""
         mock_response = Mock(spec=Response)
         mock_response.status_code = 404
         mock_response.json.return_value = {"error": "WiFi not available"}
         mock_get.return_value = mock_response
 
-        result = self.api.get_wifi_status()
+        result = self.api.get_wifi_config()
 
         self.assertIsInstance(result, APIError)
         err = cast(APIError, result)

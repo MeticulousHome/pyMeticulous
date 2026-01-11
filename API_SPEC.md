@@ -364,12 +364,6 @@ Gets WiFi setup QR data as JSON.
 
 **Returns:** `WiFiQRData` or `APIError`
 
-### `get_wifi_status() -> Union[WifiSystemStatus, APIError]`
-
-Gets current WiFi connection status.
-
-**Returns:** `WifiSystemStatus` or `APIError`
-
 ### `list_available_wifi() -> Union[List[WiFiNetwork], APIError]`
 
 Scans and lists available WiFi networks.

@@ -8,13 +8,11 @@ from requests.models import Response
 from meticulous.api import Api
 from meticulous.api_types import (
     APIError,
-    MachineState,
     UpdateCheckResponse,
     UpdateStatus,
     TimezoneResponse,
     ProfileImportResponse,
     ProfileChange,
-    WifiSystemStatus,
     WiFiQRData,
     LogFile,
 )
@@ -25,26 +23,6 @@ class TestMachineManagement(unittest.TestCase):
 
     def setUp(self) -> None:
         self.api = Api(base_url="http://localhost:8080/")
-
-    @patch("requests.Session.get")
-    def test_get_machine_state(self, mock_get: Mock) -> None:
-        """Test getting machine state."""
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "state": "idle",
-            "status": "ready",
-            "extracting": False,
-        }
-        mock_get.return_value = mock_response
-
-        result = self.api.get_machine_state()
-
-        self.assertIsInstance(result, MachineState)
-        self.assertEqual(result.state, "idle")
-        self.assertEqual(result.status, "ready")
-        self.assertFalse(result.extracting)
-        self.assertFalse(result.extracting)
 
     @patch("requests.Session.post")
     def test_check_for_updates(self, mock_post: Mock) -> None:
@@ -61,6 +39,7 @@ class TestMachineManagement(unittest.TestCase):
         result = self.api.check_for_updates()
 
         self.assertIsInstance(result, UpdateCheckResponse)
+        assert isinstance(result, UpdateCheckResponse)
         self.assertTrue(result.available)
         self.assertEqual(result.version, "1.3.0")
 
@@ -133,6 +112,7 @@ class TestTimezoneManagement(unittest.TestCase):
         result = self.api.get_timezones()
 
         self.assertFalse(isinstance(result, APIError))
+        assert not isinstance(result, APIError)
         self.assertIsNotNone(result.countries)
 
     @patch("requests.Session.get")
@@ -149,6 +129,7 @@ class TestTimezoneManagement(unittest.TestCase):
         result = self.api.get_timezone()
 
         self.assertIsInstance(result, TimezoneResponse)
+        assert isinstance(result, TimezoneResponse)
         self.assertEqual(result.timezone, "America/New_York")
 
     @patch("requests.Session.post")
@@ -165,6 +146,7 @@ class TestTimezoneManagement(unittest.TestCase):
         result = self.api.set_timezone("America/Los_Angeles")
 
         self.assertIsInstance(result, TimezoneResponse)
+        assert isinstance(result, TimezoneResponse)
         self.assertEqual(result.timezone, "America/Los_Angeles")
 
 
@@ -194,6 +176,7 @@ class TestProfileManagement(unittest.TestCase):
         result = self.api.import_profiles("profiles.zip")
 
         self.assertIsInstance(result, ProfileImportResponse)
+        assert isinstance(result, ProfileImportResponse)
         self.assertEqual(result.imported, 3)
 
     @patch("requests.Session.get")
@@ -214,6 +197,7 @@ class TestProfileManagement(unittest.TestCase):
         result = self.api.get_profile_changes()
 
         self.assertIsInstance(result, list)
+        assert not isinstance(result, APIError)
         self.assertEqual(len(result), 1)
         self.assertIsInstance(result[0], ProfileChange)
         self.assertEqual(result[0].type, "modified")
@@ -266,46 +250,6 @@ class TestWiFiManagement(unittest.TestCase):
         self.api = Api(base_url="http://localhost:8080/")
 
     @patch("requests.Session.get")
-    def test_get_wifi_status(self, mock_get: Mock) -> None:
-        """Test getting WiFi system status."""
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "connected": True,
-            "connection_name": "WiFi",
-            "gateway": "192.168.1.1",
-            "routes": ["default"],
-            "ips": ["192.168.1.100"],
-            "dns": ["8.8.8.8"],
-            "mac": "aa:bb:cc:dd:ee:ff",
-            "hostname": "meticulous",
-            "domains": ["local"],
-        }
-        mock_get.return_value = mock_response
-
-        result = self.api.get_wifi_status()
-
-        self.assertIsInstance(result, WifiSystemStatus)
-        self.assertTrue(result.connected)
-        self.assertEqual(result.gateway, "192.168.1.1")
-
-    @patch("requests.Session.post")
-    def test_scan_wifi(self, mock_post: Mock) -> None:
-        """Test scanning for WiFi networks."""
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "scanning": True,
-            "networks": [],
-        }
-        mock_post.return_value = mock_response
-
-        result = self.api.scan_wifi()
-
-        self.assertFalse(isinstance(result, APIError))
-        self.assertTrue(result.get("scanning"))
-
-    @patch("requests.Session.get")
     def test_get_wifi_qr_data(self, mock_get: Mock) -> None:
         """Test getting WiFi QR code data as JSON."""
         mock_response = Mock(spec=Response)
@@ -320,6 +264,7 @@ class TestWiFiManagement(unittest.TestCase):
         result = self.api.get_wifi_qr_data()
 
         self.assertIsInstance(result, WiFiQRData)
+        assert isinstance(result, WiFiQRData)
         self.assertEqual(result.ssid, "MyNetwork")
         self.assertEqual(result.encryption, "WPA2")
 
@@ -428,23 +373,11 @@ class TestAPIErrorHandling(unittest.TestCase):
         mock_response.json.return_value = {"error": "Internal server error"}
         mock_get.return_value = mock_response
 
-        result = self.api.get_machine_state()
+        result = self.api.get_os_status()
 
         self.assertIsInstance(result, APIError)
+        assert isinstance(result, APIError)
         self.assertEqual(result.error, "Internal server error")
-
-    @patch("requests.Session.get")
-    def test_wifi_status_not_available(self, mock_get: Mock) -> None:
-        """Test WiFi status when WiFi is not available."""
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 404
-        mock_response.json.return_value = {"error": "WiFi not available"}
-        mock_get.return_value = mock_response
-
-        result = self.api.get_wifi_status()
-
-        self.assertIsInstance(result, APIError)
-        self.assertEqual(result.error, "WiFi not available")
 
     @patch("requests.Session.post")
     def test_profile_import_invalid_file(self, mock_post: Mock) -> None:
@@ -462,6 +395,7 @@ class TestAPIErrorHandling(unittest.TestCase):
             result = self.api.import_profiles("invalid.zip")
 
         self.assertIsInstance(result, APIError)
+        assert isinstance(result, APIError)
         self.assertEqual(result.error, "Invalid profile file")
 
 

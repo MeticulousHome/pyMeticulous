@@ -11,8 +11,8 @@ and this project adheres to Semantic Versioning (https://semver.org/spec/v2.0.0.
 
 ### Added
 - API: `import_profiles()`, `get_profile_changes()`, `load_legacy_profile()`
-- API: `get_machine_state()`, `check_for_updates()`, `perform_os_update()`, `cancel_update()`, `reboot_machine()`, `get_debug_log()`, `list_logs()`, `get_log_file()`
-- API: `get_wifi_status()`, `scan_wifi()`, `get_wifi_qr_data()`
+- API: `check_for_updates()`, `perform_os_update()`, `cancel_update()`, `reboot_machine()`, `get_debug_log()`, `list_logs()`, `get_log_file()`
+- API: `get_wifi_qr_data()`
 - API: `delete_history_entry()`, `export_history()`, `get_timezone()`, `set_timezone()`, `get_timezones()`
 - Socket.IO: helper emissions (`send_action_socketio()`, `acknowledge_notification_socketio()`, `send_profile_hover()`, `trigger_calibration()`)
 - Socket.IO: connection retries with backoff (`connect_to_socket(retries, backoff, max_backoff)`)
