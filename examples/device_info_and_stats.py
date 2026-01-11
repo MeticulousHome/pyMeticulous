@@ -25,15 +25,23 @@ def main() -> None:
         return
 
     print(f"Device Name: {device_info.name}")
-    print(f"Model: {device_info.model_version}")
+    print(f"Hostname: {device_info.hostname}")
     print(f"Serial Number: {device_info.serial}")
     print(f"Batch Number: {device_info.batch_number}")
     print(f"Build Date: {device_info.build_date}")
-    print(f"Firmware: {device_info.firmware}")
-    print(f"Software Version: {device_info.software_version}")
-    print(f"Main Voltage: {device_info.mainVoltage}V")
+    if device_info.firmware:
+        print(f"Firmware: {device_info.firmware}")
+    if device_info.software_version:
+        print(f"Software Version: {device_info.software_version}")
+    if device_info.image_build_channel:
+        print(f"Build Channel: {device_info.image_build_channel}")
+    if device_info.image_version:
+        print(f"Image Version: {device_info.image_version}")
+    if device_info.mainVoltage:
+        print(f"Main Voltage: {device_info.mainVoltage}V")
     print(f"Manufacturing Mode: {device_info.manufacturing}")
-    print(f"Version History: {', '.join(device_info.version_history[-3:])}")
+    if device_info.version_history:
+        print(f"Version History: {', '.join(device_info.version_history[-3:])}")
 
     print("\n" + "=" * 60)
     print("SHOT HISTORY STATISTICS")

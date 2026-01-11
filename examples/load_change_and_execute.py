@@ -1,5 +1,15 @@
+"""Example: Load, Modify, and Execute Actions
+
+This example demonstrates how to:
+- List and retrieve profiles
+- Modify profile variables
+- Save profiles
+- Execute actions using ActionType enum
+"""
+
 import requests
-from meticulous.api import Api, APIError
+from meticulous.api import Api
+from meticulous.api_types import APIError, ActionType
 import traceback
 
 
@@ -61,13 +71,18 @@ def main() -> None:
         print("------")
         print(f"Profile loaded successfully: {loaded_profile.id}")
 
-        # Execute action (start)
-        action_response = api.execute_action("start")
+        # Execute action using ActionType enum
+        # Available actions: START, STOP, CONTINUE, RESET, TARE, PREHEAT,
+        #                   SCALE_MASTER_CALIBRATION, HOME, PURGE, ABORT
+        action_response = api.execute_action(ActionType.TARE)
         if isinstance(action_response, APIError):
             print(f"Error executing action: {action_response.error}")
             return
 
         print(f"Action executed successfully: {action_response.action}")
+        print(f"Status: {action_response.status}")
+        if action_response.allowed_actions:
+            print(f"Allowed actions: {', '.join(action_response.allowed_actions)}")
 
     except requests.exceptions.RequestException as e:
         print(f"Request failed: {e}")

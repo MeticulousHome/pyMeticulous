@@ -276,3 +276,139 @@ MOCK_OS_STATUS_RESPONSE = {
 
 
 MOCK_REGIONS_RESPONSE = {"countries": ["US", "CA", "MX"], "cities": None}
+
+
+# Mock responses for new endpoints
+
+MOCK_MACHINE_STATE_RESPONSE = {
+    "state": "idle",
+    "substate": "ready",
+    "extracting": False,
+    "preheating": False,
+}
+
+
+MOCK_UPDATE_CHECK_RESPONSE = {
+    "available": True,
+    "version": "1.3.0",
+    "notes": "Bug fixes and improvements",
+    "size": 52428800,
+}
+
+
+MOCK_UPDATE_STATUS_RESPONSE = {
+    "status": "idle",
+    "progress": 0,
+    "message": None,
+}
+
+
+MOCK_TIMEZONE_RESPONSE = {
+    "timezone": "America/New_York",
+    "offset": -18000,
+}
+
+
+MOCK_PROFILE_IMPORT_RESPONSE = {
+    "imported": 3,
+    "profiles": [
+        "05051ed3-9996-43e8-9da6-963f2b31d481",
+        "8d2de185-34c9-4ead-a46d-4ab056de1806",
+        "06050134-0680-408e-8fe4-60e7d329b136",
+    ],
+}
+
+
+MOCK_PROFILE_CHANGE_RESPONSE = [
+    {
+        "timestamp": 1704067200,
+        "profile_id": "05051ed3-9996-43e8-9da6-963f2b31d481",
+        "profile_name": "Italian limbus",
+        "change_type": "modified",
+        "user": "web-app",
+    }
+]
+
+
+MOCK_WIFI_STATUS_RESPONSE = {
+    "connected": True,
+    "ssid": "MyNetwork",
+    "signal_strength": -45,
+    "ip_address": "192.168.1.100",
+    "mac_address": "aa:bb:cc:dd:ee:ff",
+}
+
+
+MOCK_WIFI_QR_DATA_RESPONSE = {
+    "ssid": "MyNetwork",
+    "password": "secret123",
+    "security": "WPA2",
+    "hidden": False,
+}
+
+
+MOCK_LOG_FILES_RESPONSE = [
+    {
+        "name": "system.log",
+        "size": 1024,
+        "modified": 1704067200,
+    },
+    {
+        "name": "error.log",
+        "size": 512,
+        "modified": 1704153600,
+    },
+]
+
+
+MOCK_SENSORS_EVENT_RESPONSE = {
+    "t_ext_1": 90.0,
+    "t_ext_2": 90.5,
+    "t_bar_up": 88.0,
+    "t_bar_mu": 87.5,
+    "t_bar_md": 87.0,
+    "t_bar_down": 86.5,
+    "t_tube": 85.0,
+    "t_motor_temp": 45.0,
+    "lam_temp": 88.5,
+    "p": 9.0,
+    "f": 2.5,
+    "w": 42.0,
+    "a_0": 100,
+    "a_1": 150,
+    "a_2": 200,
+    "a_3": 250,
+    "m_pos": 1000,
+    "m_spd": 50,
+    "m_pwr": 30,
+    "m_cur": 500,
+    "bh_pwr": 800,
+    "bh_cur": 3500,
+    "w_stat": 1,
+    "motor_temp": 45.0,
+    "weight_pred": 41.5,
+}
+
+
+MOCK_STATUS_DATA_RESPONSE = {
+    "state": "extracting",
+    "extracting": True,
+    "time": 15000,
+    "profile_time": 12000,
+    "sensors": MOCK_SENSORS_EVENT_RESPONSE,
+    "setpoints": {
+        "pressure": 9.0,
+        "flow": 2.5,
+        "temperature": 93.0,
+    },
+}
+
+
+MOCK_HEATER_STATUS_RESPONSE = {"remaining": 5}
+
+
+MOCK_OS_UPDATE_EVENT_RESPONSE = {
+    "progress": 75,
+    "status": "downloading",
+    "message": "Downloading update...",
+}

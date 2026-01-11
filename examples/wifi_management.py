@@ -8,7 +8,10 @@ This example demonstrates how to:
 - Manage saved networks
 """
 
+from typing import cast
+
 from meticulous.api import Api, APIError
+from meticulous.api_types import WiFiConfig, WiFiConfigResponse
 
 
 def main() -> None:
@@ -19,15 +22,31 @@ def main() -> None:
     print("WIFI CONFIGURATION")
     print("=" * 60)
 
-    # Get WiFi configuration
+    # Get WiFi configuration (may include status if available)
     wifi_config = api.get_wifi_config()
     if isinstance(wifi_config, APIError):
         print(f"Error fetching WiFi config: {wifi_config.error}")
         return
 
     print("\nConfiguration:")
-    print(f"  Mode: {wifi_config.mode}")
-    print(f"  AP Name: {wifi_config.apName}")
+    if isinstance(wifi_config, WiFiConfigResponse):
+        response = cast(WiFiConfigResponse, wifi_config)
+        print(f"  Mode: {response.config.mode}")
+        print(f"  AP Name: {response.config.apName}")
+        print("\nConnection Status:")
+        print(f"  Connected: {response.status.connected}")
+        print(f"  Network: {response.status.connection_name}")
+        print(f"  Gateway: {response.status.gateway}")
+        print(f"  IPs: {', '.join(response.status.ips)}")
+        print(f"  DNS: {', '.join(response.status.dns)}")
+        print(f"  MAC: {response.status.mac}")
+    elif isinstance(wifi_config, WiFiConfig):
+        config = cast(WiFiConfig, wifi_config)
+        print(f"  Mode: {config.mode}")
+        print(f"  AP Name: {config.apName}")
+    else:
+        print("Unexpected WiFi config payload")
+        return
 
     print("\n" + "=" * 60)
     print("AVAILABLE NETWORKS")
