@@ -1,7 +1,9 @@
 """Integration tests for Socket.IO real-time events.
 
 These tests require a real meticulous machine to be available.
-Set METICULOUS_HOST environment variable to specify the machine address.
+
+Setup: See tests/integration/test_api_endpoints.py for configuration options.
+Use local_config.py file or METICULOUS_HOST environment variable.
 """
 
 import pytest
