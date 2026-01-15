@@ -11,6 +11,7 @@ and this project adheres to Semantic Versioning (https://semver.org/spec/v2.0.0.
 
 ### Fixed
 - `execute_action()` now correctly uses `ActionType.value` for URL construction instead of the enum's string representation, fixing issue where valid actions would incorrectly return error responses.
+- `set_brightness()` now validates that brightness value is between 0 and 1, with clear error messages for out-of-range values. Changed type from int to float to properly support the full range.
 
 ## [0.3.0] - 2026-01-10
 
