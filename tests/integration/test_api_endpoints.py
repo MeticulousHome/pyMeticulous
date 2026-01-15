@@ -186,6 +186,28 @@ class TestApiEndpoints(unittest.TestCase):
         self._assert_ok(result, UpdateCheckResponse)
         print(f"Updates available: {result.available}")
 
+    def test_brightness(self) -> None:
+        """Test set_brightness with full on and full off."""
+        if self._skip_if_unreachable():
+            return
+        import time
+        from meticulous.api_types import BrightnessRequest
+
+        # Set brightness to maximum (1.0)
+        brightness_max = BrightnessRequest(brightness=1.0)
+        result = self.api.set_brightness(brightness_max)
+        self.assertIsNone(result, msg=f"Expected success, got {result}")
+        print("Brightness set to 1.0 (full on)")
+
+        # Wait 5 seconds
+        time.sleep(5)
+
+        # Set brightness to minimum (0.0)
+        brightness_min = BrightnessRequest(brightness=0.0)
+        result = self.api.set_brightness(brightness_min)
+        self.assertIsNone(result, msg=f"Expected success, got {result}")
+        print("Brightness set to 0.0 (full off)")
+
 
 if __name__ == "__main__":
     unittest.main()
