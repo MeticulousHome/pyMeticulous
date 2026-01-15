@@ -1,6 +1,6 @@
 [project]
 name = "pyMeticulous"
-version = "0.3.0"
+version = "0.3.1"
 description = "Integration with the meticulouscoffee machine via its REST API"
 authors = [{ name = "Meticulous", email = "support@meticuloushome.com" }]
 readme = "README.md"
