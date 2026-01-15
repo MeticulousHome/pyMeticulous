@@ -214,7 +214,7 @@ class TestDeviceEndpoints(unittest.TestCase):
         mock_response.status_code = 200
         mock_post.return_value = mock_response
 
-        brightness_req = BrightnessRequest(brightness=80, interpolation="curve")
+        brightness_req = BrightnessRequest(brightness=0.8, interpolation="curve")
         result = self.api.set_brightness(brightness_req)
 
         self.assertIsNone(result)
