@@ -220,6 +220,22 @@ class TestDeviceEndpoints(unittest.TestCase):
         self.assertIsNone(result)
         mock_post.assert_called_once()
 
+    def test_set_brightness_out_of_range(self) -> None:
+        """Test that BrightnessRequest rejects values outside 0-1 range."""
+        # Test too low
+        with self.assertRaises(ValueError) as ctx:
+            BrightnessRequest(brightness=-0.1)
+        self.assertIn("must be between 0 and 1", str(ctx.exception))
+
+        # Test too high
+        with self.assertRaises(ValueError) as ctx:
+            BrightnessRequest(brightness=1.5)
+        self.assertIn("must be between 0 and 1", str(ctx.exception))
+
+        # Test boundary values are valid
+        BrightnessRequest(brightness=0.0)  # Should not raise
+        BrightnessRequest(brightness=1.0)  # Should not raise
+
     @patch("requests.Session.get")
     def test_get_settings(self, mock_get: Mock) -> None:
         mock_response = Mock(spec=Response)
