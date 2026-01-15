@@ -443,9 +443,14 @@ class HistoryStats(BaseModel):
 
 
 class BrightnessRequest(BaseModel):
-    brightness: int
+    brightness: float  # Range: 0-1
     interpolation: Optional[str] = None  # 'curve' | 'linear'
     animation_time: Optional[int] = None
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not 0 <= self.brightness <= 1:
+            raise ValueError(f"brightness must be between 0 and 1, got {self.brightness}")
 
 
 class Regions(BaseModel):
