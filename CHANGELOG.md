@@ -7,6 +7,11 @@ and this project adheres to Semantic Versioning (https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-01-15
+
+### Fixed
+- `execute_action()` now correctly uses `ActionType.value` for URL construction instead of the enum's string representation, fixing issue where valid actions would incorrectly return error responses.
+
 ## [0.3.0] - 2026-01-10
 
 ### Added

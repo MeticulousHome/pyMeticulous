@@ -228,7 +228,7 @@ class Api:
         self.sio.emit("calibrate", enable)
 
     def execute_action(self, action: ActionType) -> Union[ActionResponse, APIError]:
-        response = self.session.get(f"{self.base_url}/api/v1/action/{action}")
+        response = self.session.get(f"{self.base_url}/api/v1/action/{action.value}")
         try:
             # Always try to parse as ActionResponse first, since the server uses HTTP 400
             # even for valid action responses (e.g., when action is not allowed)
