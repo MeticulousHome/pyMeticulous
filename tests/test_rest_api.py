@@ -27,7 +27,6 @@ from meticulous.api_types import (
     RateShotResponse,
     DefaultProfiles,
     Regions,
-    UpdateStatus,
     TimezoneResponse,
     ProfileImportResponse,
     ProfileChange,
@@ -522,6 +521,7 @@ class TestMachineManagement(unittest.TestCase):
         self.assertEqual(osr.progress, 75)
         self.assertEqual(osr.status, "updating")
 
+
 class TestTimezoneManagement(unittest.TestCase):
     """Test timezone configuration endpoints."""
 
@@ -597,6 +597,7 @@ class TestWiFiManagement(unittest.TestCase):
 
     def setUp(self) -> None:
         self.api = Api(base_url="http://localhost:8080/")
+
 
 class TestLogManagement(unittest.TestCase):
     """Test log retrieval and management endpoints."""
