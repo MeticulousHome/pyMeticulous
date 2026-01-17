@@ -8,7 +8,6 @@ from requests.models import Response
 from meticulous.api import Api
 from meticulous.api_types import (
     APIError,
-    UpdateCheckResponse,
     UpdateStatus,
     TimezoneResponse,
     ProfileImportResponse,
@@ -23,25 +22,6 @@ class TestMachineManagement(unittest.TestCase):
 
     def setUp(self) -> None:
         self.api = Api(base_url="http://localhost:8080/")
-
-    @patch("requests.Session.post")
-    def test_check_for_updates(self, mock_post: Mock) -> None:
-        """Test checking for OS updates."""
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "available": True,
-            "version": "1.3.0",
-            "channel": "stable",
-        }
-        mock_post.return_value = mock_response
-
-        result = self.api.check_for_updates()
-
-        self.assertIsInstance(result, UpdateCheckResponse)
-        assert isinstance(result, UpdateCheckResponse)
-        self.assertTrue(result.available)
-        self.assertEqual(result.version, "1.3.0")
 
     @patch("requests.Session.post")
     def test_perform_os_update(self, mock_post: Mock) -> None:

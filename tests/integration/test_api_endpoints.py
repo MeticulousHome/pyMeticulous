@@ -174,18 +174,6 @@ class TestApiEndpoints(unittest.TestCase):
             self.assertIsInstance(debug_log, str)
             print(f"Debug log size: {len(debug_log)} chars")
 
-    def test_update_check(self) -> None:
-        """Test update check (safe read-only, doesn't install)."""
-        if self._skip_if_unreachable():
-            return
-        from meticulous.api_types import UpdateCheckResponse, APIError
-
-        result = self.api.check_for_updates()
-        if isinstance(result, APIError):
-            self.skipTest("Update check endpoint not available")
-        self._assert_ok(result, UpdateCheckResponse)
-        print(f"Updates available: {result.available}")
-
     def test_brightness(self) -> None:
         """Test set_brightness with full on and full off."""
         if self._skip_if_unreachable():

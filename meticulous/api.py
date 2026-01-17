@@ -47,7 +47,6 @@ from .api_types import (
     HeaterStatus,
     OSUpdateEvent,
     TimezoneResponse,
-    UpdateCheckResponse,
     UpdateStatus,
     SensorsEvent,
     Settings,
@@ -515,15 +514,6 @@ class Api:
         )
         if response.status_code == 200:
             return None
-        else:
-            return self._error_from_response(response)
-
-    def check_for_updates(self) -> Union[UpdateCheckResponse, APIError]:
-        response = self.session.post(
-            f"{self.base_url}/api/v1/machine/check_for_updates"
-        )
-        if response.status_code == 200:
-            return TypeAdapter(UpdateCheckResponse).validate_python(response.json())
         else:
             return self._error_from_response(response)
 
