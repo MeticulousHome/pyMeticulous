@@ -358,12 +358,6 @@ Downloads the WiFi configuration QR code image.
 
 **Returns:** PNG image bytes or APIError
 
-### `get_wifi_qr_data() -> Union[WiFiQRData, APIError]`
-
-Gets WiFi setup QR data as JSON.
-
-**Returns:** `WiFiQRData` or `APIError`
-
 ### `list_available_wifi() -> Union[List[WiFiNetwork], APIError]`
 
 Scans and lists available WiFi networks.
@@ -730,18 +724,6 @@ if not isinstance(status, APIError):
         print(f"Update progress: {status.progress}%")
     print(f"Status: {status.status}")
 ```
-
-### `perform_os_update() -> Union[UpdateStatus, APIError]`
-
-Triggers OS update.
-
-### `cancel_update() -> Union[UpdateStatus, APIError]`
-
-Cancels an in-progress OS update.
-
-### `reboot_machine() -> Union[UpdateStatus, APIError]`
-
-Reboots the machine.
 
 ### `get_debug_log() -> Union[str, APIError]`
 

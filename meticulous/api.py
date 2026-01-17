@@ -33,7 +33,6 @@ from .api_types import (
     MachineInfo,
     Notification,
     ProfileChange,
-    WiFiQRData,
     NotificationData,
     OSStatusResponse,
     ProfileImportResponse,
@@ -420,13 +419,6 @@ class Api:
         else:
             return self._error_from_response(response)
 
-    def get_wifi_qr_data(self) -> Union[WiFiQRData, APIError]:
-        response = self.session.get(f"{self.base_url}/api/v1/wifi/config/qr.json")
-        if response.status_code == 200:
-            return TypeAdapter(WiFiQRData).validate_python(response.json())
-        else:
-            return self._error_from_response(response)
-
     def list_available_wifi(self) -> Union[List[WiFiNetwork], APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/wifi/list")
         if response.status_code == 200:
@@ -514,27 +506,6 @@ class Api:
         )
         if response.status_code == 200:
             return None
-        else:
-            return self._error_from_response(response)
-
-    def perform_os_update(self) -> Union[UpdateStatus, APIError]:
-        response = self.session.post(f"{self.base_url}/api/v1/machine/perform_update")
-        if response.status_code == 200:
-            return TypeAdapter(UpdateStatus).validate_python(response.json())
-        else:
-            return self._error_from_response(response)
-
-    def cancel_update(self) -> Union[UpdateStatus, APIError]:
-        response = self.session.post(f"{self.base_url}/api/v1/machine/cancel_update")
-        if response.status_code == 200:
-            return TypeAdapter(UpdateStatus).validate_python(response.json())
-        else:
-            return self._error_from_response(response)
-
-    def reboot_machine(self) -> Union[UpdateStatus, APIError]:
-        response = self.session.post(f"{self.base_url}/api/v1/machine/reboot")
-        if response.status_code == 200:
-            return TypeAdapter(UpdateStatus).validate_python(response.json())
         else:
             return self._error_from_response(response)
 
