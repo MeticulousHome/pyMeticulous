@@ -321,6 +321,7 @@ class TestLogManagement(unittest.TestCase):
         result = self.api.list_logs()
 
         self.assertIsInstance(result, list)
+        assert isinstance(result, list)
         self.assertEqual(len(result), 2)
         self.assertIsInstance(result[0], LogFile)
         self.assertEqual(result[0].name, "system.log")
