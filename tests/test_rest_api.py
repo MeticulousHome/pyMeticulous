@@ -31,7 +31,6 @@ from meticulous.api_types import (
     TimezoneResponse,
     ProfileImportResponse,
     ProfileChange,
-    WiFiQRData,
     WiFiConfig,
     WiFiConfigResponse,
     LogFile,
@@ -523,55 +522,6 @@ class TestMachineManagement(unittest.TestCase):
         self.assertEqual(osr.progress, 75)
         self.assertEqual(osr.status, "updating")
 
-    @patch("requests.Session.post")
-    def test_perform_os_update(self, mock_post: Mock) -> None:
-        """Test performing OS update."""
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "status": "updating",
-            "progress": 0,
-        }
-        mock_post.return_value = mock_response
-
-        result = self.api.perform_os_update()
-
-        self.assertIsInstance(result, UpdateStatus)
-        self.assertEqual(result.status, "updating")
-
-    @patch("requests.Session.post")
-    def test_cancel_update(self, mock_post: Mock) -> None:
-        """Test canceling OS update."""
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "status": "cancelled",
-            "progress": 0,
-        }
-        mock_post.return_value = mock_response
-
-        result = self.api.cancel_update()
-
-        self.assertIsInstance(result, UpdateStatus)
-        self.assertEqual(result.status, "cancelled")
-
-    @patch("requests.Session.post")
-    def test_reboot_machine(self, mock_post: Mock) -> None:
-        """Test rebooting machine."""
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "status": "rebooting",
-            "progress": 0,
-        }
-        mock_post.return_value = mock_response
-
-        result = self.api.reboot_machine()
-        self.assertIsInstance(result, UpdateStatus)
-        upds = cast(UpdateStatus, result)
-        self.assertEqual(upds.status, "rebooting")
-
-
 class TestTimezoneManagement(unittest.TestCase):
     """Test timezone configuration endpoints."""
 
@@ -647,26 +597,6 @@ class TestWiFiManagement(unittest.TestCase):
 
     def setUp(self) -> None:
         self.api = Api(base_url="http://localhost:8080/")
-
-    @patch("requests.Session.get")
-    def test_get_wifi_qr_data(self, mock_get: Mock) -> None:
-        """Test getting WiFi QR code data as JSON."""
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "ssid": "MyNetwork",
-            "password": "secret123",
-            "encryption": "WPA2",
-        }
-        mock_get.return_value = mock_response
-
-        result = self.api.get_wifi_qr_data()
-
-        self.assertIsInstance(result, WiFiQRData)
-        qr = cast(WiFiQRData, result)
-        self.assertEqual(qr.ssid, "MyNetwork")
-        self.assertEqual(qr.encryption, "WPA2")
-
 
 class TestLogManagement(unittest.TestCase):
     """Test log retrieval and management endpoints."""

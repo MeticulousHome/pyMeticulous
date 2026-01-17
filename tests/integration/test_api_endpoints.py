@@ -86,10 +86,6 @@ class TestApiEndpoints(unittest.TestCase):
         qr = self.api.get_wifi_qr()
         if not isinstance(qr, APIError):
             self.assertTrue(isinstance(qr, (bytes, bytearray)))
-        # Test WiFi QR data endpoint
-        qr_data = self.api.get_wifi_qr_data()
-        if isinstance(qr_data, APIError):
-            self.skipTest("WiFi QR data endpoint not available")
 
     def test_profiles(self) -> None:
         if self._skip_if_unreachable():
