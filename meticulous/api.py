@@ -46,7 +46,6 @@ from .api_types import (
     HeaterStatus,
     OSUpdateEvent,
     TimezoneResponse,
-    UpdateStatus,
     SensorsEvent,
     Settings,
     ShotRatingResponse,

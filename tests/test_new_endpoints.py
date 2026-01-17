@@ -8,7 +8,6 @@ from requests.models import Response
 from meticulous.api import Api
 from meticulous.api_types import (
     APIError,
-    UpdateStatus,
     TimezoneResponse,
     ProfileImportResponse,
     ProfileChange,
@@ -21,6 +20,7 @@ class TestMachineManagement(unittest.TestCase):
 
     def setUp(self) -> None:
         self.api = Api(base_url="http://localhost:8080/")
+
 
 class TestTimezoneManagement(unittest.TestCase):
     """Test timezone management endpoints."""
@@ -178,6 +178,7 @@ class TestWiFiManagement(unittest.TestCase):
 
     def setUp(self) -> None:
         self.api = Api(base_url="http://localhost:8080/")
+
 
 class TestHistoryManagement(unittest.TestCase):
     """Test history management endpoints."""
