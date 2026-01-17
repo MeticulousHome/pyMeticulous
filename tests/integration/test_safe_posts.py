@@ -41,7 +41,7 @@ class TestSafePosts(unittest.TestCase):
 
         baseline = wait_for_events(self.collector, timeout_sec=3.0)
 
-        req = BrightnessRequest(brightness=60)
+        req = BrightnessRequest(brightness=0.6)
         result = self.api.set_brightness(req)
         self.assertIsNone(result, msg=f"Brightness change failed: {result}")
         print("Brightness set to 60: success")

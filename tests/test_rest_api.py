@@ -27,7 +27,6 @@ from meticulous.api_types import (
     RateShotResponse,
     DefaultProfiles,
     Regions,
-    UpdateCheckResponse,
     UpdateStatus,
     TimezoneResponse,
     ProfileImportResponse,
@@ -523,24 +522,6 @@ class TestMachineManagement(unittest.TestCase):
         osr = cast(OSStatusResponse, result)
         self.assertEqual(osr.progress, 75)
         self.assertEqual(osr.status, "updating")
-
-    @patch("requests.Session.post")
-    def test_check_for_updates(self, mock_post: Mock) -> None:
-        """Test checking for OS updates."""
-        mock_response = Mock(spec=Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "available": True,
-            "version": "1.3.0",
-            "channel": "stable",
-        }
-        mock_post.return_value = mock_response
-
-        result = self.api.check_for_updates()
-        self.assertIsInstance(result, UpdateCheckResponse)
-        upd = cast(UpdateCheckResponse, result)
-        self.assertTrue(upd.available)
-        self.assertEqual(upd.version, "1.3.0")
 
     @patch("requests.Session.post")
     def test_perform_os_update(self, mock_post: Mock) -> None:

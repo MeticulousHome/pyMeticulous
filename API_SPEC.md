@@ -731,10 +731,6 @@ if not isinstance(status, APIError):
     print(f"Status: {status.status}")
 ```
 
-### `check_for_updates() -> Union[UpdateCheckResponse, APIError]`
-
-Checks for available OS updates.
-
 ### `perform_os_update() -> Union[UpdateStatus, APIError]`
 
 Triggers OS update.

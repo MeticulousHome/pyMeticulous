@@ -174,12 +174,6 @@ class TimezoneResponse(BaseModel):
     timezone: str
 
 
-class UpdateCheckResponse(BaseModel):
-    available: Optional[bool] = None
-    version: Optional[str] = None
-    channel: Optional[str] = None
-
-
 class UpdateStatus(BaseModel):
     status: Optional[str] = None
     info: Optional[str] = None

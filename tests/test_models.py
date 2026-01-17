@@ -19,7 +19,6 @@ from meticulous.api_types import (
     StatusData,
     SensorsEvent,
     MachineState,
-    UpdateCheckResponse,
     TimezoneResponse,
     ProfileImportResponse,
     ProfileChange,
@@ -124,10 +123,6 @@ class TestMachineStateModels(unittest.TestCase):
     def test_machine_state(self) -> None:
         state = MachineState(state="idle", status="ready", extracting=False)
         self.assertEqual(state.state, "idle")
-
-    def test_update_check_response(self) -> None:
-        update = UpdateCheckResponse(available=True, version="1.3.0")
-        self.assertTrue(update.available)
 
     def test_heater_status(self) -> None:
         heater = HeaterStatus(remaining=5)
