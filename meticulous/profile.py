@@ -12,6 +12,8 @@ class Display(BaseModel):
     image: Optional[Union[AnyUrl, str]] = None
     # RGB Value in the #AABBCC format
     accentColor: Optional[str] = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
+    shortDescription: Optional[str] = None
+    description: Optional[str] = None
 
 
 class Variable(BaseModel):

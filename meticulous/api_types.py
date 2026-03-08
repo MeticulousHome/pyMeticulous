@@ -378,7 +378,7 @@ class HistoryDataPoint(BaseModel):
     shot: HistoryShotData
     time: int
     status: str
-    sensors: HistorySensorData
+    sensors: Optional[HistorySensorData] = None
 
 
 class ShotRating(str, Enum):
