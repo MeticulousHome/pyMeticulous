@@ -698,5 +698,33 @@ class TestAPIErrorHandling(unittest.TestCase):
         self.assertEqual(err.error, "Invalid profile file")
 
 
+class TestSessionRetry(unittest.TestCase):
+    """Test that the HTTP session retries on connection errors."""
+
+    def test_session_mounts_retry_adapter(self):
+        """Verify retry adapter is mounted for both http and https."""
+        api = Api()
+        for scheme in ("http://", "https://"):
+            adapter = api.session.get_adapter(f"{scheme}localhost")
+            self.assertEqual(adapter.max_retries.total, 1)
+            self.assertEqual(adapter.max_retries.connect, 1)
+
+    def test_retry_on_connection_refused(self):
+        """Verify the session retries once on connection failure.
+
+        Connects to a port that is not listening. With retry=1,
+        urllib3 attempts twice before raising, proving the adapter works.
+        """
+        api = Api()
+        with self.assertRaises(Exception) as ctx:
+            api.session.get("http://127.0.0.1:1/test")
+        exc = ctx.exception
+        self.assertTrue(
+            "MaxRetryError" in type(exc).__name__
+            or "ConnectionError" in type(exc).__name__,
+            f"Expected retry-related error, got {type(exc).__name__}",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

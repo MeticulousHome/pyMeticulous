@@ -6,7 +6,9 @@ from typing import IO, Any, Callable, Dict, List, Optional, Union, get_args
 
 import json
 import requests
+from requests.adapters import HTTPAdapter
 import socketio
+from urllib3.util.retry import Retry
 import zstandard as zstd
 from pydantic import TypeAdapter
 
@@ -172,6 +174,10 @@ class Api:
         self.session.headers.update(
             {"Accept": "application/json", "Content-Type": "application/json"}
         )
+        retry = Retry(total=1, connect=1, allowed_methods=None)
+        adapter = HTTPAdapter(max_retries=retry)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
 
         # Register socketio event handlers if options provided
         self.options.register_handlers(self.sio)
