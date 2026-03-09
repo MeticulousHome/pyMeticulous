@@ -708,6 +708,7 @@ class TestSessionRetry(unittest.TestCase):
             adapter = api.session.get_adapter(f"{scheme}localhost")
             self.assertEqual(adapter.max_retries.total, 1)
             self.assertEqual(adapter.max_retries.connect, 1)
+            self.assertEqual(adapter.max_retries.read, 1)
 
     def test_retry_on_connection_refused(self):
         """Verify the session retries once on connection failure.

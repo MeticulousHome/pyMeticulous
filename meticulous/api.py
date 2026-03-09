@@ -174,7 +174,7 @@ class Api:
         self.session.headers.update(
             {"Accept": "application/json", "Content-Type": "application/json"}
         )
-        retry = Retry(total=1, connect=1, allowed_methods=None)
+        retry = Retry(total=1, connect=1, read=1, allowed_methods=None)
         adapter = HTTPAdapter(max_retries=retry)
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
