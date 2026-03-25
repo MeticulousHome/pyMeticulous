@@ -10,6 +10,8 @@ pyMeticulous provides a complete Python interface to the [Meticulous TypeScript 
 
 **Version 0.3.0** adds complete backend API alignment with comprehensive testing, event throttling, robust error handling, and extensive machine management endpoints.
 
+**Version 0.4.0** migrates to uv for project management, and includes pre-commit hooks for code quality.
+
 ## Features
 
 - **Profile Management**: Create, load, save, and manage espresso profiles
@@ -25,10 +27,12 @@ pyMeticulous provides a complete Python interface to the [Meticulous TypeScript 
 
 ## Installation
 
-You can install the `pyMeticulous` package using pip:
+You can install the `pyMeticulous` package using pip or uv:
 
 ```bash
 pip install pyMeticulous
+# or
+uv add pyMeticulous
 ```
 
 ## Quick Start
@@ -202,26 +206,42 @@ pyMeticulous uses Pydantic v2 for complete data validation and type safety. All 
 
 ## Development
 
+This project uses [uv](https://docs.astral.sh/uv/) for dependency management and [pre-commit](https://pre-commit.com/) for code quality hooks.
+
+### Setup
+
+```bash
+# Install dependencies and set up the virtual environment
+uv sync
+
+# Install pre-commit hooks (black formatting + flake8 linting)
+uv run pre-commit install
+```
+
 ### Running Tests
 
 pyMeticulous includes both **unit tests** (fast, using mocks) and **integration tests** (require real hardware).
 
 ```bash
-# Install test dependencies
-pip install -e ".[test]"
-
 # Run only unit tests (fast, no hardware needed)
-pytest -m "not integration"
+uv run pytest -m "not integration"
 
 # Run only integration tests (requires real machine)
 export METICULOUS_HOST=192.168.1.100:8080  # Set your machine address
-pytest -m integration
+uv run pytest -m integration
 
 # Run all tests
-pytest
+uv run pytest
 
 # Run with coverage (unit tests only)
-pytest --cov=meticulous -m "not integration"
+uv run pytest --cov=meticulous -m "not integration"
+```
+
+### Linting
+
+```bash
+uv run black --check meticulous examples tests
+uv run flake8 meticulous examples tests
 ```
 
 ### Test Organization
@@ -253,10 +273,12 @@ pyMeticulous/
 │   ├── test_socketio.py    # Socket.IO tests
 │   ├── integration/        # Integration tests (require real machine)
 │   └── mock_responses.py   # Test fixtures
-├── examples/               # Example scripts
-├── API_SPEC.md            # Complete API documentation
+├── examples/                   # Example scripts
+├── .pre-commit-config.yaml     # Pre-commit hook configuration
+├── API_SPEC.md                 # Complete API documentation
 ├── README.md
-└── pyproject.toml
+├── pyproject.toml
+└── uv.lock                     # Dependency lockfile
 ```
 
 ## Requirements

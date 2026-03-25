@@ -2,7 +2,6 @@ import json
 
 import zstandard as zstd
 
-
 MOCK_PROFILE_LIST_RESPONSE = [
     {
         "name": "Italian limbus",

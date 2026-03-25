@@ -7,11 +7,22 @@ and this project adheres to Semantic Versioning (https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-## [0.3.1] - 2026-01-15
+## [0.4.0] - 2026-03-25
+
+### Added
+- Automatic HTTP retry on stale connections (1 retry for connect and read errors)
+- `Display` model: `shortDescription` and `description` fields
+
+### Changed
+- Migrated project management from pip to uv
+- Added pre-commit hooks for black formatting and flake8 linting
+- Updated CI/CD workflows to use uv
+- `HistoryDataPoint.sensors` is now optional
 
 ### Fixed
-- `execute_action()` now correctly uses `ActionType.value` for URL construction instead of the enum's string representation, fixing issue where valid actions would incorrectly return error responses.
-- `set_brightness()` now validates that brightness value is between 0 and 1, with clear error messages for out-of-range values. Changed type from int to float to properly support the full range.
+- `execute_action()` now correctly uses `ActionType.value` for URL construction instead of the enum's string representation
+- `set_brightness()` now validates that brightness value is between 0 and 1, with clear error messages for out-of-range values. Changed type from int to float.
+- HTTP retry includes `read=1` to handle response-phase connection resets
 
 ## [0.3.0] - 2026-01-10
 
@@ -57,5 +68,6 @@ and this project adheres to Semantic Versioning (https://semver.org/spec/v2.0.0.
 - Pydantic v2 compatibility and type checking cleanups
 - Tests updated; passing suite
 
+[0.4.0]: https://github.com/MeticulousHome/pyMeticulous/releases/tag/v0.4.0
 [0.3.0]: https://github.com/MeticulousHome/pyMeticulous/releases/tag/v0.3.0
 [0.2.0]: https://github.com/MeticulousHome/pyMeticulous/releases/tag/v0.2.0

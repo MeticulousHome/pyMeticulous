@@ -701,7 +701,7 @@ class TestAPIErrorHandling(unittest.TestCase):
 class TestSessionRetry(unittest.TestCase):
     """Test that the HTTP session retries on connection errors."""
 
-    def test_session_mounts_retry_adapter(self):
+    def test_session_mounts_retry_adapter(self) -> None:
         """Verify retry adapter is mounted for both http and https."""
         api = Api()
         for scheme in ("http://", "https://"):
@@ -710,7 +710,7 @@ class TestSessionRetry(unittest.TestCase):
             self.assertEqual(adapter.max_retries.connect, 1)
             self.assertEqual(adapter.max_retries.read, 1)
 
-    def test_retry_on_connection_refused(self):
+    def test_retry_on_connection_refused(self) -> None:
         """Verify the session retries once on connection failure.
 
         Connects to a port that is not listening. With retry=1,
@@ -720,10 +720,10 @@ class TestSessionRetry(unittest.TestCase):
         with self.assertRaises(Exception) as ctx:
             api.session.get("http://127.0.0.1:1/test")
         exc = ctx.exception
+        name = type(exc).__name__
         self.assertTrue(
-            "MaxRetryError" in type(exc).__name__
-            or "ConnectionError" in type(exc).__name__,
-            f"Expected retry-related error, got {type(exc).__name__}",
+            "MaxRetryError" in name or "ConnectionError" in name,
+            f"Expected retry-related error, got {name}",
         )
 
 
