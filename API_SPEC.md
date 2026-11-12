@@ -7,6 +7,7 @@ This document provides a complete reference for the pyMeticulous API wrapper.
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [API Class](#api-class)
+- [Device Authorization](#device-authorization)
 - [Profile Management](#profile-management)
 - [Action Control](#action-control)
 - [Settings Management](#settings-management)
@@ -48,12 +49,17 @@ for profile in profiles:
 ### Constructor
 
 ```python
-Api(base_url: str = "http://localhost:8080/", options: Optional[ApiOptions] = None)
+Api(
+    base_url: str = "http://localhost:8080/",
+    options: Optional[ApiOptions] = None,
+    token: Optional[str] = None,
+)
 ```
 
 **Parameters:**
 - `base_url` (str): The base URL of the Meticulous API server
 - `options` (ApiOptions, optional): Event handler configuration for Socket.IO events. Supports throttling via `throttle`.
+- `token` (str, optional): Device token, see [Device Authorization](#device-authorization). Without it no `Authorization` header is sent.
 
 **Example:**
 ```python
@@ -70,7 +76,9 @@ api = Api(base_url="http://192.168.1.100:8080/", options=options)
 
 #### `connect_to_socket(retries: int = 0, backoff: float = 0.5, max_backoff: float = 4.0) -> None`
 
-Establishes a Socket.IO connection for real-time events.
+Establishes a Socket.IO connection for real-time events. When `api.token` is set it is sent as `auth={"token": ...}` in the handshake.
+
+Raises `UnauthorizedError` (a `socketio.exceptions.ConnectionError`) right away, without retrying, when the machine refuses the device with `unauthorized`.
 
 ```python
 api.connect_to_socket(retries=3, backoff=0.5, max_backoff=4.0)
@@ -96,6 +104,67 @@ api.acknowledge_notification_socketio("notif-id", "acknowledged")
 api.send_profile_hover({"id": "profile-id", "name": "My Profile"})
 api.trigger_calibration(True)
 ```
+
+## Device Authorization
+
+When the machine's `require_authorization` setting is on, every `/api` call and the Socket.IO connection from the network need a device token. Calls from the machine itself and from its own hotspot are exempt. A token is optional in this library: without one, no header and no Socket.IO auth are sent, as before.
+
+To get a token, ask for access, let someone press **Allow** on the machine, poll the request, then trade the returned pairing code for a token. Store the token; it does not expire, but "Sign out all devices" on the machine invalidates it.
+
+```python
+import time
+
+from meticulous.api import Api
+from meticulous.api_types import APIError, AccessRequestState
+
+api = Api(base_url="http://192.168.1.100/", token=stored_token)  # stored_token may be None
+
+check = api.validate_token()
+if isinstance(check, APIError) and check.http_status == 404:
+    pass  # older machine without device authorization, nothing to do
+elif isinstance(check, APIError) and check.code == "UNAUTHORIZED":
+    request = api.request_access("Home Assistant")
+    if isinstance(request, APIError):
+        raise RuntimeError(request.code)  # REQUEST_PENDING, TOO_MANY_ATTEMPTS, ...
+    status = api.get_access_request(request.id)
+    while not isinstance(status, APIError) and status.status == AccessRequestState.PENDING:
+        time.sleep(1)
+        status = api.get_access_request(request.id)
+    if not isinstance(status, APIError) and status.status == AccessRequestState.APPROVED:
+        paired = api.exchange_pairing_code(status.code, "Home Assistant")
+        if not isinstance(paired, APIError):
+            api.token = paired.token  # and store paired.token for next time
+```
+
+A 404 from any `/api/v1/auth/*` route means the backend predates device authorization. Tokens and pairing codes are never logged, and `repr()` of `TokenResponse` and `AccessRequestStatus` leaves them out.
+
+### `token` property
+
+Read or set the device token. Setting it updates the `Authorization: Bearer` header right away. An open Socket.IO connection keeps its handshake; the new token is used on the next (re)connect. `None` or `""` clears it.
+
+### `request_access(name: str) -> Union[AccessRequestResponse, APIError]`
+
+`POST /api/v1/auth/request`. Shows "“<name>” is asking to use this machine" on the machine with Deny/Allow. Returns `AccessRequestResponse` (`id`, `expires_in` seconds) on 202.
+
+Errors: 400 `INVALID_REQUEST` (empty name), 409 `REQUEST_PENDING` (another request is waiting), 429 `TOO_MANY_ATTEMPTS` (`APIError.retry_after` holds the `Retry-After` seconds).
+
+### `get_access_request(request_id: str) -> Union[AccessRequestStatus, APIError]`
+
+`GET /api/v1/auth/request/<id>`, polled about once per second. `status` is one of `AccessRequestState`: `pending`, `denied`, `expired` (nobody answered in 60 s) or `approved`, which also carries `code` and `expires_in` (600 s) for `exchange_pairing_code()`. An unknown id is a 404 `NOT_FOUND`.
+
+### `exchange_pairing_code(code: str, name: Optional[str] = None) -> Union[TokenResponse, APIError]`
+
+`POST /api/v1/auth/token`. Trades a one-time pairing code (`ABCD-EFGH` or `ABCDEFGH`) for a `TokenResponse` (`token`, `device` with `id` and `name`). It does not set `api.token`.
+
+Errors: 400 `INVALID_REQUEST`, 401 `INVALID_CODE` (unknown, used or expired code), 429 `TOO_MANY_ATTEMPTS` (see `retry_after`).
+
+### `validate_token(token: Optional[str] = None) -> Union[TokenValidation, APIError]`
+
+`GET /api/v1/auth/validate`. Returns `TokenValidation` (`required`, `local`, `token_valid`, `device`) with 200 exactly when this device may use the API, and an `APIError` with `code == "UNAUTHORIZED"` (401) when it has to pair. Pass `token` to check another token than the stored one.
+
+### Losing access
+
+A 401 with `APIError.code == "UNAUTHORIZED"` from any call outside `/auth`, or `UnauthorizedError` from `connect_to_socket()`, means the device has to pair (again). `ApiOptions(onUnauthorized=...)` is called in both cases, including when python-socketio's background reconnect is refused (once per token or `connect_to_socket()` call). A 401 from `/auth/token` or `/auth/validate` does not call it.
 
 ## Profile Management
 
@@ -779,6 +848,7 @@ api.disconnect_socket()
 - `onSettingsChange`: Receives settings changes
 - `onNotification`: Receives NotificationData
 - `onProfileChange`: Receives ProfileEvent updates
+- `onUnauthorized`: Called without arguments when the machine refuses this device, see [Losing access](#losing-access)
 
 ### Event Throttling
 
@@ -888,6 +958,11 @@ else:
 ```
 
 If the server returns a non-JSON error (e.g., HTML or plain text), a best-effort `APIError` is constructed using the HTTP status and reason.
+
+`APIError` also carries:
+- `code`: the machine's error code from `data.code` (e.g. `UNAUTHORIZED`, see `AuthErrorCode`), or `None`
+- `http_status`: the HTTP status code of the response
+- `retry_after`: seconds from the `Retry-After` header, when present
 
 ## Complete Example
 

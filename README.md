@@ -169,6 +169,31 @@ api.send_profile_hover({"id": "profile-id", "name": "My Profile"})
 api.trigger_calibration(True)
 ```
 
+## Device Authorization
+
+Machines can require a device token for API and Socket.IO access from the network. Pass a stored token to the client, or pair once and store the result:
+
+```python
+import time
+
+from meticulous.api import Api
+from meticulous.api_types import APIError, AccessRequestState
+
+api = Api(base_url="http://192.168.1.100/", token=stored_token)  # None until paired
+
+check = api.validate_token()
+if isinstance(check, APIError) and check.code == "UNAUTHORIZED":
+    request = api.request_access("My script")  # someone presses Allow on the machine
+    status = api.get_access_request(request.id)
+    while status.status == AccessRequestState.PENDING:
+        time.sleep(1)
+        status = api.get_access_request(request.id)
+    if status.status == AccessRequestState.APPROVED:
+        api.token = api.exchange_pairing_code(status.code, "My script").token
+```
+
+A 404 from `validate_token()` means the machine has no device authorization. `ApiOptions(onUnauthorized=...)` is called when the machine stops accepting the token. See the [API Specification](https://github.com/MeticulousHome/pyMeticulous/blob/main/API_SPEC.md#device-authorization) for error handling.
+
 ## Error Handling
 
 All API methods return either the expected type or an `APIError` object:

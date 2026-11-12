@@ -1,9 +1,9 @@
 # pyright: reportCallIssue=false, reportUnusedVariable=false
 from datetime import datetime
 from enum import Enum
-from typing import Callable, Dict, List, Optional, Type, Union, TypeAlias
+from typing import Any, Callable, Dict, List, Optional, Type, Union, TypeAlias
 from .profile import Profile
-from pydantic import AnyUrl, BaseModel, create_model, ConfigDict
+from pydantic import AnyUrl, BaseModel, create_model, ConfigDict, Field
 
 
 def on_event(event_name: str) -> Callable[[Type], Type]:
@@ -32,6 +32,78 @@ class APIError(BaseModel):
 
     error: Optional[str] = None
     status: Optional[str] = None
+    # Error details from the body, e.g. {"code": "UNAUTHORIZED"}
+    data: Optional[Any] = None
+    # Filled in by the client from the HTTP response, never sent by the server
+    http_status: Optional[int] = None
+    retry_after: Optional[int] = None  # seconds, from the Retry-After header
+
+    @property
+    def code(self) -> Optional[str]:
+        """The machine's error code (`data.code`), e.g. `UNAUTHORIZED`."""
+        if isinstance(self.data, dict):
+            code = self.data.get("code")
+            if isinstance(code, str):
+                return code
+        return None
+
+
+class AuthErrorCode(str, Enum):
+    """`APIError.code` values returned by /auth and by the API guard."""
+
+    UNAUTHORIZED = "UNAUTHORIZED"
+    INVALID_CODE = "INVALID_CODE"
+    INVALID_REQUEST = "INVALID_REQUEST"
+    INVALID_MODE = "INVALID_MODE"
+    LOCAL_ONLY = "LOCAL_ONLY"
+    REQUEST_PENDING = "REQUEST_PENDING"
+    TOO_MANY_ATTEMPTS = "TOO_MANY_ATTEMPTS"
+    NOT_FOUND = "NOT_FOUND"
+
+
+class AuthDevice(BaseModel):
+    """A paired device as the machine knows it."""
+
+    id: str
+    name: str
+
+
+class TokenResponse(BaseModel):
+    """Response of POST /auth/token. Store `token`; it does not expire."""
+
+    token: str = Field(repr=False)
+    device: AuthDevice
+
+
+class TokenValidation(BaseModel):
+    """200 response of GET /auth/validate."""
+
+    required: bool  # whether the machine currently requires authorization
+    local: bool  # whether the request came from the machine itself
+    token_valid: bool
+    device: Optional[AuthDevice] = None  # None without a valid token
+
+
+class AccessRequestResponse(BaseModel):
+    """202 response of POST /auth/request."""
+
+    id: str  # poll it with get_access_request()
+    expires_in: int  # seconds the machine waits for someone to answer
+
+
+class AccessRequestState(str, Enum):
+    PENDING = "pending"
+    DENIED = "denied"
+    EXPIRED = "expired"
+    APPROVED = "approved"
+
+
+class AccessRequestStatus(BaseModel):
+    """Response of GET /auth/request/<id>. `code` is set once approved."""
+
+    status: str  # AccessRequestState
+    code: Optional[str] = Field(default=None, repr=False)
+    expires_in: Optional[int] = None
 
 
 class AcknowledgeNotificationRequest(BaseModel):
@@ -100,6 +172,9 @@ class Settings(BaseModel):
     usb_mode: str  # 'client' | 'host' | 'dual_role'
     update_channel: str
     ssh_enabled: bool
+    # Whether devices on the network need a token; only the machine itself
+    # can change it. Older backends omit the key.
+    require_authorization: Optional[bool] = None
 
 
 # Generate PartialSettings dynamically from Settings

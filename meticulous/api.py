@@ -1,8 +1,11 @@
 # pyright: reportGeneralTypeIssues=false
 from dataclasses import dataclass
 from datetime import datetime
+import logging
+import re
 import time
 from typing import IO, Any, Callable, Dict, List, Optional, Union, get_args
+from urllib.parse import quote, urlparse
 
 import json
 import requests
@@ -13,11 +16,14 @@ import zstandard as zstd
 from pydantic import TypeAdapter
 
 from .api_types import (
+    AccessRequestResponse,
+    AccessRequestStatus,
     AcknowledgeNotificationRequest,
     ActionResponse,
     ActionType,
     Actuators,
     APIError,
+    AuthErrorCode,
     BrightnessRequest,
     ButtonEvent,
     ChangeProfileResponse,
@@ -48,6 +54,8 @@ from .api_types import (
     HeaterStatus,
     OSUpdateEvent,
     TimezoneResponse,
+    TokenResponse,
+    TokenValidation,
     SensorsEvent,
     Settings,
     ShotRatingResponse,
@@ -58,6 +66,30 @@ from .api_types import (
     WiFiNetwork,
     WifiSystemStatus,
 )
+
+logger = logging.getLogger(__name__)
+
+# Message of the Socket.IO connect_error the machine sends to a device that
+# needs a token.
+SOCKET_UNAUTHORIZED = "unauthorized"
+_AUTH_PATH = "/api/v1/auth"
+
+
+class UnauthorizedError(socketio.exceptions.ConnectionError):
+    """The machine refused the Socket.IO connection: this device has to pair."""
+
+
+def _is_auth_path(url: Optional[str]) -> bool:
+    # base_url may end with "/", which leaves "//api" in request paths
+    path = re.sub(r"/{2,}", "/", urlparse(url or "").path)
+    return path.endswith(_AUTH_PATH) or f"{_AUTH_PATH}/" in path
+
+
+def _retry_after(response: requests.Response) -> Optional[int]:
+    try:
+        return int(response.headers["Retry-After"])
+    except Exception:
+        return None
 
 
 @dataclass
@@ -74,6 +106,9 @@ class ApiOptions:
     onProfileChange: Optional[Callable[[ProfileEvent], None]] = None
     onHeaterStatus: Optional[Callable[[HeaterStatus], None]] = None
     onOSUpdate: Optional[Callable[[OSUpdateEvent], None]] = None
+    # Called when the machine answers 401 UNAUTHORIZED (outside /auth) or
+    # refuses the Socket.IO connection: this device has to pair (again).
+    onUnauthorized: Optional[Callable[[], None]] = None
     throttle: Optional[Union[float, Dict[str, float]]] = None
 
     # Fetch the events name from the Callbacks parameter and save it
@@ -90,7 +125,9 @@ class ApiOptions:
                         # Get the callbacks parameters
                         parameter_types = handler_args[0]
                         # Check the first parameters type to have a class variable _socketio_event
-                        if hasattr(parameter_types[0], "_socketio_event"):
+                        if parameter_types and hasattr(
+                            parameter_types[0], "_socketio_event"
+                        ):
                             event_name = getattr(parameter_types[0], "_socketio_event")
                             setattr(self, f"_{field.name}_event_name", event_name)
 
@@ -166,6 +203,7 @@ class Api:
         self,
         base_url: str = "http://localhost:8080/",
         options: Optional[ApiOptions] = None,
+        token: Optional[str] = None,
     ) -> None:
         self.base_url = base_url
         self.options: ApiOptions = options or ApiOptions()
@@ -178,9 +216,70 @@ class Api:
         adapter = HTTPAdapter(max_retries=retry)
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
+        self.session.hooks["response"].append(self._check_unauthorized)
+
+        self._socket_refusal: Optional[str] = None
+        self._socket_unauthorized_notified = False
+        self._token: Optional[str] = None
+        self.token = token
 
         # Register socketio event handlers if options provided
         self.options.register_handlers(self.sio)
+        self.sio.on("connect_error", self._on_connect_error)
+
+    @property
+    def token(self) -> Optional[str]:
+        """Device token sent as `Authorization: Bearer` and in the Socket.IO auth."""
+        return self._token
+
+    @token.setter
+    def token(self, token: Optional[str]) -> None:
+        # An open socket keeps its handshake; the new token is used on the
+        # next (re)connect.
+        self._token = token or None
+        if self._token:
+            self.session.headers["Authorization"] = f"Bearer {self._token}"
+        else:
+            self.session.headers.pop("Authorization", None)
+        self._socket_unauthorized_notified = False
+
+    def _socket_auth(self) -> Optional[Dict[str, str]]:
+        # Called by python-socketio on every (re)connect. None sends the same
+        # empty auth as a client without a token.
+        return {"token": self._token} if self._token else None
+
+    def _notify_unauthorized(self) -> None:
+        if self.options.onUnauthorized is None:
+            return
+        try:
+            self.options.onUnauthorized()
+        except Exception:
+            logger.exception("onUnauthorized handler failed")
+
+    def _check_unauthorized(
+        self, response: requests.Response, *args: object, **kwargs: object
+    ) -> None:
+        # A 401 from /auth is about the code or token that call carried, not a
+        # sign that this device lost access.
+        if response.status_code != 401 or _is_auth_path(response.url):
+            return
+        try:
+            data = response.json().get("data")
+            code = data.get("code") if isinstance(data, dict) else None
+        except Exception:
+            return
+        if code == AuthErrorCode.UNAUTHORIZED.value:
+            self._notify_unauthorized()
+
+    def _on_connect_error(self, data: object = None, *args: object) -> None:
+        message = data.get("message") if isinstance(data, dict) else data
+        self._socket_refusal = message if isinstance(message, str) else None
+        if self._socket_refusal == SOCKET_UNAUTHORIZED:
+            # python-socketio keeps reconnecting in the background; tell the
+            # handler once per token or connect_to_socket() call.
+            if not self._socket_unauthorized_notified:
+                self._socket_unauthorized_notified = True
+                self._notify_unauthorized()
 
     def connect_to_socket(
         self,
@@ -188,13 +287,24 @@ class Api:
         backoff: float = 0.5,
         max_backoff: float = 4.0,
     ) -> None:
+        """Connect to the machine's Socket.IO server.
+
+        Raises UnauthorizedError right away, without retrying, when the
+        machine refuses this device; pair, set `token`, then connect again.
+        """
         attempt = 0
         delay = backoff
+        self._socket_unauthorized_notified = False
         while True:
+            self._socket_refusal = None
             try:
-                self.sio.connect(self.base_url)
+                self.sio.connect(self.base_url, auth=self._socket_auth)
                 return
-            except Exception:
+            except Exception as exc:
+                if self._socket_refusal == SOCKET_UNAUTHORIZED:
+                    raise UnauthorizedError(
+                        "The machine refused this device, it needs a token"
+                    ) from exc
                 attempt += 1
                 if attempt > retries:
                     raise
@@ -206,12 +316,17 @@ class Api:
 
     def _error_from_response(self, response: requests.Response) -> APIError:
         try:
-            return TypeAdapter(APIError).validate_python(response.json())
+            error = TypeAdapter(APIError).validate_python(response.json())
         except Exception:
-            return APIError(
+            error = APIError(
                 error=getattr(response, "reason", "HTTP Error"),
                 status=str(response.status_code),
             )
+        status_code = getattr(response, "status_code", None)
+        if isinstance(status_code, int):
+            error.http_status = status_code
+        error.retry_after = _retry_after(response)
+        return error
 
     def send_action_socketio(self, action: ActionType) -> None:
         if action.value not in self.ALLOWED_SOCKETIO_ACTIONS:
@@ -232,12 +347,82 @@ class Api:
 
     def execute_action(self, action: ActionType) -> Union[ActionResponse, APIError]:
         response = self.session.get(f"{self.base_url}/api/v1/action/{action.value}")
+        if response.status_code == 401:
+            return self._error_from_response(response)
         try:
             # Always try to parse as ActionResponse first, since the server uses HTTP 400
             # even for valid action responses (e.g., when action is not allowed)
             return TypeAdapter(ActionResponse).validate_python(response.json())
         except Exception:
             # If ActionResponse parsing fails, try APIError
+            return self._error_from_response(response)
+
+    # Device authorization. Older backends answer 404 on every /auth route
+    # (APIError.http_status == 404).
+
+    def request_access(self, name: str) -> Union[AccessRequestResponse, APIError]:
+        """POST /auth/request: ask the person at the machine to let this device in.
+
+        Poll the returned id with get_access_request(). Errors: 400
+        INVALID_REQUEST, 409 REQUEST_PENDING, 429 TOO_MANY_ATTEMPTS (see
+        `retry_after`).
+        """
+        response = self.session.post(
+            f"{self.base_url}/api/v1/auth/request", json={"name": name}
+        )
+        if response.status_code == 202:
+            return TypeAdapter(AccessRequestResponse).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
+
+    def get_access_request(
+        self, request_id: str
+    ) -> Union[AccessRequestStatus, APIError]:
+        """GET /auth/request/<id>: pending, denied, expired or approved with a code.
+
+        Exchange an approved code with exchange_pairing_code(). An unknown id
+        is a 404 NOT_FOUND.
+        """
+        response = self.session.get(
+            f"{self.base_url}/api/v1/auth/request/{quote(request_id, safe='')}"
+        )
+        if response.status_code == 200:
+            return TypeAdapter(AccessRequestStatus).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
+
+    def exchange_pairing_code(
+        self, code: str, name: Optional[str] = None
+    ) -> Union[TokenResponse, APIError]:
+        """POST /auth/token: trade a pairing code for a token that does not expire.
+
+        The token is not stored; set `api.token` to use it. Errors: 400
+        INVALID_REQUEST, 401 INVALID_CODE, 429 TOO_MANY_ATTEMPTS (see
+        `retry_after`).
+        """
+        body: Dict[str, str] = {"code": code}
+        if name is not None:
+            body["name"] = name
+        response = self.session.post(f"{self.base_url}/api/v1/auth/token", json=body)
+        if response.status_code == 200:
+            return TypeAdapter(TokenResponse).validate_python(response.json())
+        else:
+            return self._error_from_response(response)
+
+    def validate_token(
+        self, token: Optional[str] = None
+    ) -> Union[TokenValidation, APIError]:
+        """GET /auth/validate: 200 when this device may use the API, else 401.
+
+        Checks `token` instead of the stored one when given.
+        """
+        headers = {"Authorization": f"Bearer {token}"} if token else None
+        response = self.session.get(
+            f"{self.base_url}/api/v1/auth/validate", headers=headers
+        )
+        if response.status_code == 200:
+            return TypeAdapter(TokenValidation).validate_python(response.json())
+        else:
             return self._error_from_response(response)
 
     def list_profiles(self) -> Union[List[PartialProfile], APIError]:

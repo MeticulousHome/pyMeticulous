@@ -7,6 +7,17 @@ and this project adheres to Semantic Versioning (https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+- Device authorization: optional `token` (`Api(..., token=...)` / `api.token`) sent as `Authorization: Bearer` on HTTP and as `auth={"token": ...}` in the Socket.IO handshake. Without a token nothing changes.
+- API: `request_access()`, `get_access_request()`, `exchange_pairing_code()`, `validate_token()` for the `/api/v1/auth` routes
+- `ApiOptions.onUnauthorized`, called on a 401 `UNAUTHORIZED` outside `/auth` or when the machine refuses the Socket.IO connection
+- `UnauthorizedError`, raised by `connect_to_socket()` without retrying when the machine refuses the device
+- `APIError.code` (`data.code`), `APIError.http_status` and `APIError.retry_after`
+- `Settings.require_authorization`
+
+### Fixed
+- `execute_action()` returns an `APIError` on 401 instead of an empty `ActionResponse`
+
 ## [0.3.1] - 2026-01-15
 
 ### Fixed
